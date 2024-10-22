@@ -42,3 +42,30 @@ def save_assistments_BKT(
         json.dump(skill_dict, json_file)  # Added indent for better readability
 
     print(f"Skill dictionary saved to {output_file}.")
+
+
+def return_assistments_df(
+        input_file='../data/raw/skill_builder_data.csv'
+        ) -> None:
+    """
+    Save the assistments data as a pandas dataframe.
+
+    Parameters:
+    - input_file: str, path to the input CSV file containing the assistments data.
+    """
+    
+    # Load the dataset
+    df_assistments = pd.read_csv(input_file, encoding='ISO-8859-1', low_memory=False)
+
+    # Prepare the data: select relevant columns and drop missing values
+    df_data = df_assistments[['order_id', 'user_id', 'correct', 'skill_id',
+                              'ms_first_response', 'bottom_hint']]
+    # Drop rows where any of the specified columns have missing values
+    df_data = df_data.dropna(subset=['order_id', 'user_id', 'correct', 'skill_id'])
+    df_data['order_id'] = df_data['order_id'].astype(int)
+    df_data['user_id'] = df_data['user_id'].astype(int)
+    df_data['correct'] = df_data['correct'].astype(int)
+    df_data['skill_id'] = df_data['skill_id'].astype(int)
+    df_data = df_data.sort_values(by=['user_id', 'order_id'])
+
+    return df_data
