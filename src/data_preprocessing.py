@@ -19,7 +19,9 @@ def save_assistments_BKT(
     df_assistments = pd.read_csv(input_file, encoding='ISO-8859-1', low_memory=False)
 
     # Prepare the data: select relevant columns and drop missing values
-    df_data = df_assistments[['order_id', 'user_id', 'correct', 'skill_id']].dropna()
+    df_data = df_assistments[['order_id', 'user_id', 'correct', 'skill_id']]
+    df_data = df_data.dropna()
+    df_data = df_data.drop_duplicates()
     df_data['skill_id'] = df_data['skill_id'].astype(int)
     df_data = df_data.sort_values(by=['user_id', 'order_id'])
 
@@ -39,6 +41,46 @@ def save_assistments_BKT(
     # Save the skill dictionary to a JSON file
     with open(output_file, 'w') as json_file:
         json.dump(skill_dict, json_file)  # Added indent for better readability
+
+    print(f"Skill dictionary saved to {output_file}.")
+
+
+def save_assistments_DKT(
+        input_file='../data/raw/skill_builder_data.csv',
+        output_file='../data/preprocessed/assistments_user_dict.json'
+        ) -> None:
+    """
+    Save the assistments data as a Deep Knowledge Tracing (BKT) dictionary.
+
+    Parameters:
+    - input_file: str, path to the input CSV file containing the assistments data.
+    - output_file: str, path to the output JSON file where the skill dictionary will be saved.
+    """
+    
+    # Load the dataset
+    df_assistments = pd.read_csv(input_file, encoding='ISO-8859-1', low_memory=False)
+
+    df_data = df_assistments[['order_id', 'user_id', 'correct', 'problem_id']]
+    # Drop rows where any of the specified columns have missing values
+    df_data = df_data.dropna()
+    df_data = df_data.drop_duplicates()
+    df_data['order_id'] = df_data['order_id'].astype(int)
+    df_data['user_id'] = df_data['user_id'].astype(int)
+    df_data['correct'] = df_data['correct'].astype(int)
+    df_data['problem_id'] = df_data['problem_id'].astype(int)
+    df_data = df_data.sort_values(by=['user_id', 'order_id'])
+
+    # Create the desired dictionary
+    result_dict = defaultdict(list)
+
+    # Group by 'user_id' and iterate through each group
+    for user_id, user_group in df_data.groupby('user_id'):
+        # Create a list of tuples (problem_id, correct) for each user_id
+        result_dict[user_id] = list(zip(user_group['problem_id'], user_group['correct']))
+
+    # Save the skill dictionary to a JSON file
+    with open(output_file, 'w') as json_file:
+        json.dump(result_dict, json_file)  # Added indent for better readability
 
     print(f"Skill dictionary saved to {output_file}.")
 
