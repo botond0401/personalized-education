@@ -31,8 +31,7 @@ def save_assistments_BKT(
         for _, user_group in skill_group.groupby('user_id'):
             # Extract the list of answers for this user and append to the skill dictionary
             answers = user_group['correct'].tolist()
-            answers_with_brackets = [[answer] for answer in answers]
-            skill_dict[skill_id].append(answers_with_brackets)
+            skill_dict[skill_id].append(answers)
 
     # Convert defaultdict to a regular dictionary
     skill_dict = dict(skill_dict)
