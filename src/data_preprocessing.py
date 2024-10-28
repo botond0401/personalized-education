@@ -56,19 +56,10 @@ def save_assistments_DKT(
     - input_file: str, path to the input CSV file containing the assistments data.
     - output_file: str, path to the output JSON file where the skill dictionary will be saved.
     """
-    
-    # Load the dataset
-    df_assistments = pd.read_csv(input_file, encoding='ISO-8859-1', low_memory=False)
+    df_data = return_assistments_dkt_df(input_file)
 
-    df_data = df_assistments[['order_id', 'user_id', 'correct', 'problem_id']]
-    # Drop rows where any of the specified columns have missing values
-    df_data = df_data.dropna()
-    df_data = df_data.drop_duplicates()
-    df_data['order_id'] = df_data['order_id'].astype(int)
-    df_data['user_id'] = df_data['user_id'].astype(int)
-    df_data['correct'] = df_data['correct'].astype(int)
-    df_data['problem_id'] = df_data['problem_id'].astype(int)
-    df_data = df_data.sort_values(by=['user_id', 'order_id'])
+    df_data['problem_id'], _ = pd.factorize(df_data['problem_id'])
+    df_data['problem_id'] += 1
 
     # Create the desired dictionary
     result_dict = defaultdict(list)
@@ -99,14 +90,47 @@ def return_assistments_df(
     df_assistments = pd.read_csv(input_file, encoding='ISO-8859-1', low_memory=False)
 
     # Prepare the data: select relevant columns and drop missing values
-    df_data = df_assistments[['order_id', 'user_id', 'correct', 'skill_id',
+    df_data = df_assistments[['order_id', 'user_id', 'correct', 'skill_id', 'problem_id'
                               'ms_first_response', 'bottom_hint']]
     # Drop rows where any of the specified columns have missing values
-    df_data = df_data.dropna(subset=['order_id', 'user_id', 'correct', 'skill_id'])
+    df_data = df_data.dropna(subset=['order_id', 'user_id', 'correct', 'problem_id'])
     df_data['order_id'] = df_data['order_id'].astype(int)
     df_data['user_id'] = df_data['user_id'].astype(int)
     df_data['correct'] = df_data['correct'].astype(int)
     df_data['skill_id'] = df_data['skill_id'].astype(int)
+    df_data = df_data.sort_values(by=['user_id', 'order_id'])
+
+    return df_data
+
+
+def return_assistments_dkt_df(
+        input_file='../data/raw/skill_builder_data.csv'
+        ) -> None:
+    """
+    Save the assistments data as a pandas dataframe for DKT.
+
+    Parameters:
+    - input_file: str, path to the input CSV file containing the assistments data.
+    """
+    
+    # Load the dataset
+    df_assistments = pd.read_csv(input_file, encoding='ISO-8859-1', low_memory=False)
+
+    df_data = df_assistments[['order_id', 'user_id', 'correct', 'problem_id']]
+    # Drop rows where any of the specified columns have missing values
+    df_data = df_data.dropna()
+    df_data = df_data.drop_duplicates()
+
+    user_problem_counts = df_data.groupby('user_id')['problem_id'].nunique()
+    users_to_drop = user_problem_counts[user_problem_counts == 1].index
+    problem_counts = df_data['problem_id'].value_counts()
+    problems_to_drop = problem_counts[problem_counts == 1].index
+    df_data = df_data[~df_data['user_id'].isin(users_to_drop) & ~df_data['problem_id'].isin(problems_to_drop)]
+
+    df_data['order_id'] = df_data['order_id'].astype(int)
+    df_data['user_id'] = df_data['user_id'].astype(int)
+    df_data['correct'] = df_data['correct'].astype(int)
+    df_data['problem_id'] = df_data['problem_id'].astype(int)
     df_data = df_data.sort_values(by=['user_id', 'order_id'])
 
     return df_data
