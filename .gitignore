@@ -1,1 +1,4 @@
 Lib/
+
+# Ignore virtual environment
+personalized_education/
