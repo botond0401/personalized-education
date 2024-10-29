@@ -1,0 +1,23 @@
+
+from torch.utils.data import Dataset
+
+
+class AnswerSet(Dataset):
+    def __init__(self, user_dict):
+
+      user_dict = {key: value for key, value in user_dict.items() if len(value) > 1}
+
+      self.user_ids = list(user_dict.keys())
+
+      # storing a list of the answers
+      user_sequences = user_dict.values()
+      self.inputs = [user_sequence[:-1] for user_sequence in user_sequences]
+
+      # storing a list of their labels
+      self.targets = [[answer[1] for answer in user_sequence[1:]] for user_sequence in user_sequences]
+
+    def __getitem__(self, indices):
+      return self.inputs[indices], self.targets[indices]
+
+    def __len__(self):
+        return len(self.inputs)
