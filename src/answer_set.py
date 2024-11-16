@@ -14,7 +14,7 @@ class AnswerSet(Dataset):
       self.inputs = [user_sequence[:-1] for user_sequence in user_sequences]
 
       # storing a list of their labels
-      self.targets = [[answer[1] for answer in user_sequence[1:]] for user_sequence in user_sequences]
+      self.targets = [user_sequence[1:] for user_sequence in user_sequences]
 
     def __getitem__(self, indices):
       return self.inputs[indices], self.targets[indices]

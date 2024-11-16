@@ -47,7 +47,8 @@ def save_assistments_BKT(
 
 def save_assistments_DKT(
         input_file='../data/raw/skill_builder_data.csv',
-        output_file='../data/preprocessed/assistments_user_dict.json'
+        output_file='../data/preprocessed/assistments_user_dict.json',
+        constants_file='../data/constants.py'
         ) -> None:
     """
     Save the assistments data as a Deep Knowledge Tracing (BKT) dictionary.
@@ -61,6 +62,13 @@ def save_assistments_DKT(
     df_data['problem_id'], _ = pd.factorize(df_data['problem_id'])
     df_data['problem_id'] += 1
 
+    # Extract the highest value
+    HIGHEST_PROBLEM_ID = df_data['problem_id'].max()
+
+    # Save it to a Python file
+    with open(constants_file, "w") as f:
+        f.write(f"HIGHEST_PROBLEM_ID = {HIGHEST_PROBLEM_ID}\n")
+        
     # Create the desired dictionary
     result_dict = defaultdict(list)
 
