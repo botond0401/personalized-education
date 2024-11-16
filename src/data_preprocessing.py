@@ -130,7 +130,7 @@ def return_assistments_dkt_df(
     df_data = df_data.drop_duplicates()
 
     problem_counts = df_data['problem_id'].value_counts()
-    problems_to_drop = problem_counts[problem_counts == 1].index
+    problems_to_drop = problem_counts[problem_counts > 10].index
     df_data = df_data[~df_data['problem_id'].isin(problems_to_drop)]
 
     user_problem_counts = df_data.groupby('user_id')['problem_id'].nunique()
