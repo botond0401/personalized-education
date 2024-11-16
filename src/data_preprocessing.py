@@ -129,11 +129,13 @@ def return_assistments_dkt_df(
     df_data = df_data.dropna()
     df_data = df_data.drop_duplicates()
 
-    user_problem_counts = df_data.groupby('user_id')['problem_id'].nunique()
-    users_to_drop = user_problem_counts[user_problem_counts == 1].index
     problem_counts = df_data['problem_id'].value_counts()
     problems_to_drop = problem_counts[problem_counts == 1].index
-    df_data = df_data[~df_data['user_id'].isin(users_to_drop) & ~df_data['problem_id'].isin(problems_to_drop)]
+    df_data = df_data[~df_data['problem_id'].isin(problems_to_drop)]
+
+    user_problem_counts = df_data.groupby('user_id')['problem_id'].nunique()
+    users_to_drop = user_problem_counts[user_problem_counts == 1].index
+    df_data = df_data[~df_data['user_id'].isin(users_to_drop)]
 
     df_data['order_id'] = df_data['order_id'].astype(int)
     df_data['user_id'] = df_data['user_id'].astype(int)
