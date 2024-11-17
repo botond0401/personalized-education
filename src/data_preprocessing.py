@@ -174,8 +174,8 @@ if __name__ == "__main__":
     # Define constants
     input_file = 'data/raw/skill_builder_data.csv'
     output_file_bkt = 'data/preprocessed/assistments_skill_dict.json'
-    min_students_per_skill_per_skill = 10
-    min_sequence_length_per_skill_per_skill = 3
+    min_students_per_skill = 10
+    min_sequence_length_per_skill = 3
 
     output_file_dkt = 'data/preprocessed/assistments_user_dict.json'
     max_sequence_len = 256
@@ -184,7 +184,7 @@ if __name__ == "__main__":
 
     # Process the assistments data and generate the skill dictionary (for BKT)
     skill_dict = return_assistments_dict_bkt(
-        input_file, min_students_per_skill_per_skill, min_sequence_length_per_skill_per_skill)
+        input_file, min_students_per_skill, min_sequence_length_per_skill)
 
     # Save the skill dictionary to a JSON file
     with open(output_file_bkt, 'w') as json_file:
