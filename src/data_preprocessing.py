@@ -1,31 +1,44 @@
 import json
 from collections import defaultdict
-import pandas as pd
-from typing import List, Dict
+from typing import List, Dict, Tuple, Literal
 
+import pandas as pd
 
 
 def return_assistments_df(input_file: str) -> pd.DataFrame:
     """
-    Return the assistments data as preprocessed a pandas dataframe for BKT.
+    Returns the assistments data as a preprocessed pandas dataframe for BKT.
 
+    This function loads the assistments data from a CSV file, selects relevant columns,
+    drops rows with missing values, removes duplicates, and sorts the data by user and order IDs.
+    
     Parameters:
     - input_file: str, path to the input CSV file containing the assistments data.
-    """
     
-    # Load the dataset
+    Returns:
+    - pd.DataFrame: A preprocessed dataframe containing the assistments data, 
+      with relevant columns, cleaned and sorted.
+    """
+    # Load the dataset with encoding to handle non-UTF-8 characters
     df_assistments = pd.read_csv(input_file, encoding='ISO-8859-1', low_memory=False)
 
     # Prepare the data: select relevant columns and drop missing values
-    df_data = df_assistments[['order_id', 'user_id', 'correct', 'skill_id', 'problem_id'
+    df_data = df_assistments[['order_id', 'user_id', 'correct', 'skill_id', 'problem_id',
                               'ms_first_response', 'bottom_hint']]
+
     # Drop rows where any of the specified columns have missing values
     df_data = df_data.dropna(subset=['order_id', 'user_id', 'correct', 'skill_id'])
+    
+    # Remove duplicate rows based on the specified subset of columns
     df_data = df_data.drop_duplicates(subset=['order_id', 'user_id', 'correct', 'skill_id'])
+    
+    # Convert columns to appropriate data types
     df_data['order_id'] = df_data['order_id'].astype(int)
     df_data['user_id'] = df_data['user_id'].astype(int)
     df_data['correct'] = df_data['correct'].astype(int)
     df_data['skill_id'] = df_data['skill_id'].astype(int)
+    
+    # Sort the dataframe by user ID and order ID to maintain the sequence of events
     df_data = df_data.sort_values(by=['user_id', 'order_id'])
 
     return df_data
@@ -36,25 +49,49 @@ def _valid_answers(
         min_students_per_skill: int,
         min_sequence_length_per_skill: int
 ) -> bool:
-    max_sequence_length = max([len(answer) for answer in answers])
+    """
+    Validates if the given answers meet the minimum required conditions.
+
+    This function checks if the skill has a sufficient number of students and if the 
+    maximum sequence length of answers per student exceeds the minimum threshold.
+
+    Parameters:
+    - answers: List[List[int]], A list of answers for different users (each user has a list of answers).
+    - min_students_per_skill: int, The minimum number of students required for a skill to be valid.
+    - min_sequence_length_per_skill: int, The minimum sequence length required for a skill to be valid.
+
+    Returns:
+    - bool: True if the skill is valid based on the criteria, otherwise False.
+    """
+    # Calculate the maximum sequence length across all users' answers
+    max_sequence_length = max(len(answer) for answer in answers)
+    
+    # Check if the number of students and the max sequence length meet the minimum requirements
     if len(answers) >= min_students_per_skill and max_sequence_length >= min_sequence_length_per_skill:
         return True
     return False
 
 
 def return_assistments_dict_bkt(
-        input_file,
-        min_students_per_skill,
-        min_sequence_length_per_skill
-        ) -> Dict[str, List[List[int]]]:
+        input_file: str,
+        min_students_per_skill: int,
+        min_sequence_length_per_skill: int
+) -> Dict[str, List[List[Literal[0, 1]]]]:
     """
-    Save the assistments data as a Bayesian Knowledge Tracing (BKT) dictionary.
+    Returns the assistments data as a Bayesian Knowledge Tracing (BKT) dictionary.
 
+    This function processes the data, grouping it by skill and user, and ensures 
+    that the answers meet the minimum criteria before appending them to the dictionary.
+    
     Parameters:
     - input_file: str, path to the input CSV file containing the assistments data.
-    - output_file: str, path to the output JSON file where the skill dictionary will be saved.
+    - min_students_per_skill: int, The minimum number of students required per skill.
+    - min_sequence_length_per_skill: int, The minimum sequence length required per skill.
+
+    Returns:
+    - dict: A dictionary where the keys are skill IDs and the values are lists of answers 
+      (each answer is a list of integers 0 or 1) for each student.
     """
-    
     # Load the dataset
     df_data = return_assistments_df(input_file)
 
@@ -63,82 +100,102 @@ def return_assistments_dict_bkt(
 
     # Group the DataFrame by skill_id and user_id
     for skill_id, skill_group in df_data.groupby('skill_id'):
+        answer_list = []
         for _, user_group in skill_group.groupby('user_id'):
-            # Extract the list of answers for this user and append to the skill dictionary
+            # Extract the list of answers for this user
             answers = user_group['correct'].tolist()
-            if _valid_answers(answers, min_students_per_skill, min_sequence_length_per_skill):
-                skill_dict[skill_id].append(answers)
+            answer_list.append(answers)
+    
+        # Validate the answers and add them to the dictionary if valid
+        if _valid_answers(answer_list, min_students_per_skill, min_sequence_length_per_skill):
+            skill_dict[skill_id] = answer_list
 
-    # Convert defaultdict to a regular dictionary
+    # Convert defaultdict to a regular dictionary and return
     skill_dict = dict(skill_dict)
 
     return skill_dict
 
 
 def return_assistments_dict_dkt(
-        input_file='../data/raw/skill_builder_data.csv',
-        constants_file='../data/constants.py'
-        ) -> None:
+        input_file: str,
+        max_sequence_len: int,
+        min_appearances_per_problem: int,
+        min_answers_per_user: int
+) -> Dict[str, List[Tuple[int, Literal[0, 1]]]]:
     """
-    Save the assistments data as a Deep Knowledge Tracing (BKT) dictionary.
+    Returns the assistments data as a Deep Knowledge Tracing (DKT) dictionary.
 
+    This function processes the data, filtering out problems and users that don't meet 
+    the required frequency criteria, and generates a dictionary of answers for each user.
+    
     Parameters:
     - input_file: str, path to the input CSV file containing the assistments data.
-    - output_file: str, path to the output JSON file where the skill dictionary will be saved.
+    - max_sequence_len: int, The maximum sequence length allowed for each user.
+    - min_appearances_per_problem: int, The minimum number of appearances required for a problem to be valid.
+    - min_answers_per_user: int, The minimum number of answers required from each user.
+
+    Returns:
+    - dict: A dictionary where the keys are user IDs and the values are lists of tuples 
+      (problem_id, correct) representing each user’s interactions with problems.
     """
+    # Load the dataset
     df_data = return_assistments_df(input_file)
 
-    df_data = df_data.groupby('user_id').head(MAX_LEN).reset_index(drop=True)
+    # Group the data by user_id and limit each user to a maximum sequence length
+    df_data = df_data.groupby('user_id').head(max_sequence_len).reset_index(drop=True)
 
+    # Filter problems based on the number of appearances
     problem_counts = df_data['problem_id'].value_counts()
-    problems_to_keep = problem_counts[problem_counts >= 5].index
+    problems_to_keep = problem_counts[problem_counts >= min_appearances_per_problem].index
     df_data = df_data[df_data['problem_id'].isin(problems_to_keep)]
 
+    # Filter users based on the number of unique problems they've interacted with
     user_problem_counts = df_data.groupby('user_id')['problem_id'].nunique()
-    users_to_keep = user_problem_counts[user_problem_counts >= 1].index
+    users_to_keep = user_problem_counts[user_problem_counts >= min_answers_per_user].index
     df_data = df_data[df_data['user_id'].isin(users_to_keep)]
 
-    df_data['problem_id'], _ = pd.factorize(df_data['problem_id'])
-    df_data['problem_id'] += 1
-
-    # Extract the highest value
-    HIGHEST_PROBLEM_ID = df_data['problem_id'].max()
-
-    # Save it to a Python file
-    with open(constants_file, "w") as f:
-        f.write(f"HIGHEST_PROBLEM_ID = {HIGHEST_PROBLEM_ID}\n")
-        
-    # Create the desired dictionary
+    # Create the desired dictionary where each user_id maps to a list of (problem_id, correct) tuples
     result_dict = defaultdict(list)
 
     # Group by 'user_id' and iterate through each group
     for user_id, user_group in df_data.groupby('user_id'):
-        # Create a list of tuples (problem_id, correct) for each user_id
         result_dict[user_id] = list(zip(user_group['problem_id'], user_group['correct']))
 
     return result_dict
 
 
-input_file = '../data/raw/skill_builder_data.csv'
-output_file_bkt = '../data/preprocessed/assistments_skill_dict.json'
-output_file_dkt = '../data/preprocessed/assistments_user_dict.json'
+if __name__ == "__main__":
+    """
+    Main function to preprocess assistments data and save the generated dictionaries as JSON files.
 
-min_students_per_skill_per_skill = 10
-min_sequence_length_per_skill_per_skill = 3
-MAX_LEN = 256
+    This script loads raw assistments data, processes it for Bayesian Knowledge Tracing (BKT) 
+    and Deep Knowledge Tracing (DKT), and saves the results into JSON files.
+    """
+    # Define constants
+    input_file = 'data/raw/skill_builder_data.csv'
+    output_file_bkt = 'data/preprocessed/assistments_skill_dict.json'
+    min_students_per_skill_per_skill = 10
+    min_sequence_length_per_skill_per_skill = 3
 
-skill_dict = return_assistments_dict_bkt(input_file, min_students_per_skill_per_skill, min_sequence_length_per_skill_per_skill)
+    output_file_dkt = 'data/preprocessed/assistments_user_dict.json'
+    max_sequence_len = 256
+    min_appearances_per_problem = 10
+    min_answers_per_user = 3
 
-# Save the skill dictionary to a JSON file
-with open(output_file_bkt, 'w') as json_file:
-    json.dump(skill_dict, json_file)  # Added indent for better readability
+    # Process the assistments data and generate the skill dictionary (for BKT)
+    skill_dict = return_assistments_dict_bkt(
+        input_file, min_students_per_skill_per_skill, min_sequence_length_per_skill_per_skill)
 
-print(f"Skill dictionary saved to {output_file_bkt}.")
+    # Save the skill dictionary to a JSON file
+    with open(output_file_bkt, 'w') as json_file:
+        json.dump(skill_dict, json_file)
+    print(f"Skill dictionary saved to {output_file_bkt}.")
 
-user_dict = return_assistments_dict_dkt(input_file)
+    # Process the assistments data and generate the user dictionary (for DKT)
+    user_dict = return_assistments_dict_dkt(
+        input_file, max_sequence_len, min_appearances_per_problem, min_answers_per_user)
 
-# Save the skill dictionary to a JSON file
-with open(output_file_dkt, 'w') as json_file:
-    json.dump(user_dict, json_file)  # Added indent for better readability
-
-print(f"User dictionary saved to {output_file_dkt}.")
+    # Save the user dictionary to a JSON file
+    with open(output_file_dkt, 'w') as json_file:
+        json.dump(user_dict, json_file)
+    print(f"User dictionary saved to {output_file_dkt}.")

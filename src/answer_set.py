@@ -5,8 +5,6 @@ from torch.utils.data import Dataset
 class AnswerSet(Dataset):
     def __init__(self, user_dict):
 
-      user_dict = {key: value for key, value in user_dict.items() if len(value) > 1}
-
       self.user_ids = list(user_dict.keys())
 
       # storing a list of the answers
@@ -21,3 +19,4 @@ class AnswerSet(Dataset):
 
     def __len__(self):
         return len(self.inputs)
+    
