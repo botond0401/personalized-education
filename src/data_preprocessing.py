@@ -5,7 +5,7 @@ from typing import List, Dict, Tuple, Literal
 import pandas as pd
 
 
-def return_assistments_df(input_file: str) -> pd.DataFrame:
+def return_assistments_df_bkt(input_file: str) -> pd.DataFrame:
     """
     Returns the assistments data as a preprocessed pandas dataframe for BKT.
 
@@ -29,14 +29,68 @@ def return_assistments_df(input_file: str) -> pd.DataFrame:
     # Drop rows where any of the specified columns have missing values
     df_data = df_data.dropna(subset=['order_id', 'user_id', 'correct', 'skill_id'])
     
-    # Remove duplicate rows based on the specified subset of columns
-    df_data = df_data.drop_duplicates(subset=['order_id', 'user_id', 'correct', 'skill_id'])
-    
     # Convert columns to appropriate data types
     df_data['order_id'] = df_data['order_id'].astype(int)
     df_data['user_id'] = df_data['user_id'].astype(int)
     df_data['correct'] = df_data['correct'].astype(int)
     df_data['skill_id'] = df_data['skill_id'].astype(int)
+    
+    # Sort the dataframe by user ID and order ID to maintain the sequence of events
+    df_data = df_data.sort_values(by=['user_id', 'order_id'])
+
+    return df_data
+
+
+def return_assistments_df_dkt(
+        input_file: str,
+        max_sequence_len: int,
+        min_appearances_per_problem: int,
+        min_answers_per_user: int
+        ) -> pd.DataFrame:
+    """
+    Returns the assistments data as a preprocessed pandas dataframe for DKT.
+
+    This function loads the assistments data from a CSV file, selects relevant columns,
+    drops rows with missing values, removes duplicates, and sorts the data by user and order IDs.
+    
+    Parameters:
+    - input_file: str, path to the input CSV file containing the assistments data.
+    
+    Returns:
+    - pd.DataFrame: A preprocessed dataframe containing the assistments data, 
+      with relevant columns, cleaned and sorted.
+    """
+    # Load the dataset with encoding to handle non-UTF-8 characters
+    df_assistments = pd.read_csv(input_file, encoding='ISO-8859-1', low_memory=False)
+
+    # Prepare the data: select relevant columns and drop missing values
+    df_data = df_assistments[['order_id', 'user_id', 'correct', 'skill_id', 'problem_id',
+                              'ms_first_response', 'bottom_hint']]
+
+    # Drop rows where any of the specified columns have missing values
+    df_data = df_data.dropna(subset=['order_id', 'user_id', 'correct', 'problem_id'])
+    
+    # Remove duplicate rows based on the specified subset of columns
+    df_data = df_data.drop_duplicates(subset=['order_id', 'user_id', 'correct', 'problem_id'])
+
+    # Group the data by user_id and limit each user to a maximum sequence length
+    df_data = df_data.groupby('user_id').head(max_sequence_len).reset_index(drop=True)
+
+    # Filter problems based on the number of appearances
+    problem_counts = df_data['problem_id'].value_counts()
+    problems_to_keep = problem_counts[problem_counts >= min_appearances_per_problem].index
+    df_data = df_data[df_data['problem_id'].isin(problems_to_keep)]
+
+    # Filter users based on the number of unique problems they've interacted with
+    user_problem_counts = df_data.groupby('user_id')['problem_id'].nunique()
+    users_to_keep = user_problem_counts[user_problem_counts >= min_answers_per_user].index
+    df_data = df_data[df_data['user_id'].isin(users_to_keep)]
+    
+    # Convert columns to appropriate data types
+    df_data['order_id'] = df_data['order_id'].astype(int)
+    df_data['user_id'] = df_data['user_id'].astype(int)
+    df_data['correct'] = df_data['correct'].astype(int)
+    df_data['problem_id'] = df_data['problem_id'].astype(int)
     
     # Sort the dataframe by user ID and order ID to maintain the sequence of events
     df_data = df_data.sort_values(by=['user_id', 'order_id'])
@@ -93,8 +147,8 @@ def return_assistments_dict_bkt(
       (each answer is a list of integers 0 or 1) for each student.
     """
     # Load the dataset
-    df_data = return_assistments_df(input_file)
-
+    df_data = return_assistments_df_bkt(input_file)
+    
     # Initialize a dictionary to map skill_ids to lists of users' answers
     skill_dict = defaultdict(list)
 
@@ -139,20 +193,9 @@ def return_assistments_dict_dkt(
       (problem_id, correct) representing each user’s interactions with problems.
     """
     # Load the dataset
-    df_data = return_assistments_df(input_file)
-
-    # Group the data by user_id and limit each user to a maximum sequence length
-    df_data = df_data.groupby('user_id').head(max_sequence_len).reset_index(drop=True)
-
-    # Filter problems based on the number of appearances
-    problem_counts = df_data['problem_id'].value_counts()
-    problems_to_keep = problem_counts[problem_counts >= min_appearances_per_problem].index
-    df_data = df_data[df_data['problem_id'].isin(problems_to_keep)]
-
-    # Filter users based on the number of unique problems they've interacted with
-    user_problem_counts = df_data.groupby('user_id')['problem_id'].nunique()
-    users_to_keep = user_problem_counts[user_problem_counts >= min_answers_per_user].index
-    df_data = df_data[df_data['user_id'].isin(users_to_keep)]
+    df_data = return_assistments_df_dkt(input_file, max_sequence_len,
+                                        min_appearances_per_problem,
+                                        min_answers_per_user)
 
     # Create the desired dictionary where each user_id maps to a list of (problem_id, correct) tuples
     result_dict = defaultdict(list)
