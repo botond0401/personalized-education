@@ -222,7 +222,7 @@ if __name__ == "__main__":
 
     output_file_dkt = 'data/preprocessed/assistments_user_dict.json'
     max_sequence_len = 256
-    min_appearances_per_problem = 10
+    min_appearances_per_problem = 5
     min_answers_per_user = 3
 
     # Process the assistments data and generate the skill dictionary (for BKT)

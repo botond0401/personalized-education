@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-from dkt_embedding import CustomEmbeddingLayer
+from .dkt_embedding import CustomEmbeddingLayer
 
 # Define the DKT model
 
@@ -12,7 +12,7 @@ class DKT(nn.Module):
         super(DKT, self).__init__()
         
         # Custom embedding layer for (problem_id, correct) pairs
-        self.embedding = CustomEmbeddingLayer(embed_dim)
+        self.embedding = CustomEmbeddingLayer(num_items, embed_dim)
         
         # RNN layer
         self.rnn = nn.RNN(embed_dim, hid_size, num_hid_layers, batch_first=True)

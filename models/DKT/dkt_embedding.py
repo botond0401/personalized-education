@@ -13,7 +13,7 @@ def transform_to_random_vector(problem_id, correct, dim=10):
     return random_vector
 
 class CustomEmbeddingLayer(nn.Module):
-    def __init__(self, num_items, dim=10):
+    def __init__(self, num_items, dim):
         super(CustomEmbeddingLayer, self).__init__()
         self.num_items = num_items
         self.dim = dim
@@ -65,3 +65,4 @@ class CustomEmbeddingLayer(nn.Module):
 
         # Return the embeddings based on the indices
         return self.embedding(indices)
+    
