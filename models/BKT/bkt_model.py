@@ -1,8 +1,8 @@
 import numpy as np
 from hmmlearn import hmm
-from bkt_initialization import BKTInitialization
-from bkt_prediction import BKTPrediction
-from bkt_evaluation import calculate_auc
+from .bkt_initialization import BKTInitialization
+from .bkt_prediction import BKTPrediction
+from .bkt_evaluation import calculate_auc
 
 class ModelBKT(hmm.CategoricalHMM):
     def __init__(self, skill_id, user_answers, initial_probs=None, trans_probs=None, emit_probs=None):
