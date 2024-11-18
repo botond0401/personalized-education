@@ -75,9 +75,9 @@ class ModelBKT(hmm.CategoricalHMM):
         predictor = BKTPrediction()
         return predictor.predict(self, observations)
 
-    def self_evaluate(self):
+    def evaluate(self, test_user_answers):
         """
         Evaluate the model using AUC score based on user answers.
         """
-        predictions = self.predict(self.user_answers)
-        return calculate_auc(self.user_answers, predictions)
+        predictions = self.predict(test_user_answers)
+        return calculate_auc(test_user_answers, predictions)
