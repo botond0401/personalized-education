@@ -157,17 +157,18 @@ class BKTInitialization:
         Returns:
         - A numpy array representing the transition probabilities.
         """
-        no_to_yes_count = answer_counts[('No', 'Yes')] / 2
+        no_to_yes_count = answer_counts[('No', 'Yes')] / 2 # because of guesses
         no_to_no_count = answer_counts[('No', 'No')] + no_to_yes_count
         total_no_count = answer_counts[('No', 'Yes')] + answer_counts[('No', 'No')]
-        yes_to_no_count = answer_counts[('Yes', 'No')]
-        yes_to_yes_count = answer_counts[('Yes', 'Yes')]
-        total_yes_count = yes_to_no_count + yes_to_yes_count
 
         if allow_forget:
+            yes_to_no_count = answer_counts[('Yes', 'No')] / 2 # becuase of mistakes
+            yes_to_yes_count = answer_counts[('Yes', 'Yes')] + yes_to_no_count
+            total_yes_count = yes_to_no_count + yes_to_yes_count
             return np.array([[no_to_no_count / total_no_count if total_no_count > 0 else 0,
-                               yes_to_no_count / total_yes_count if total_yes_count > 0 else 0],
-                              [0, 1]])
+                               no_to_yes_count / total_no_count if total_no_count > 0 else 0],
+                              [yes_to_no_count / total_yes_count if total_yes_count > 0 else 0,
+                              yes_to_yes_count / total_yes_count if total_yes_count > 0 else 0]])
         return np.array([[no_to_no_count / total_no_count if total_no_count > 0 else 0,
                             no_to_yes_count / total_no_count if total_no_count > 0 else 0],
                             [0, 1]])

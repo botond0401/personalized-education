@@ -5,7 +5,7 @@ from .bkt_prediction import BKTPrediction
 from .bkt_evaluation import calculate_auc
 
 class ModelBKT(hmm.CategoricalHMM):
-    def __init__(self, skill_id, user_answers, initial_probs=None, trans_probs=None, emit_probs=None):
+    def __init__(self, skill_id, user_answers, initial_probs=None, trans_probs=None, emit_probs=None, allow_forget=False):
         """
         Initializes a BKT model for a specific skill using HMM.
 
@@ -33,13 +33,14 @@ class ModelBKT(hmm.CategoricalHMM):
         self.startprob_ = initial_probs
         self.transmat_ = trans_probs
         self.emissionprob_ = emit_probs
+        self.allow_forget = allow_forget
 
     def fit(self):
         """
         Fit the BKT model using user answers.
         """
         if (self.startprob_ is None) or (self.transmat_ is None) or (self.emissionprob_ is None):
-            BKTInitialization.set_initial_parameters(self)
+            BKTInitialization.set_initial_parameters(self, self.allow_forget)
 
         # Prepare the data
         X = np.concatenate([[[answer] for answer in answers] for answers in self.user_answers])
