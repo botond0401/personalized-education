@@ -23,11 +23,17 @@ class ModelBKT(hmm.CategoricalHMM):
             raise ValueError("Each user answer must be an integer (0 or 1).")
 
         # Initialize as a CategoricalHMM with 2 states
-        super().__init__(n_components=2, init_params="")
+        super().__init__(n_components=2, n_features=2, init_params="")
+
 
         self.skill_id = skill_id
         self.user_answers = user_answers
         self.n_users = len(user_answers)
+        all_answers = [answer for answers in self.user_answers for answer in answers]
+        num_zeros = all_answers.count(0)
+        num_ones = all_answers.count(1)
+        if (num_zeros / (num_ones+1e-10) < 0.1) or (num_ones / (num_zeros+1e-10) < 0.1):
+            assert ValueError("Training data is too imbalanced.")
 
         # Set initial parameters if provided
         self.startprob_ = initial_probs

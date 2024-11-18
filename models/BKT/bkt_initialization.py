@@ -142,8 +142,8 @@ class BKTInitialization:
         - A numpy array representing the initial probabilities.
         """
         incorrect_first_answer_count = total_users - correct_first_answer_count
-        return np.array([correct_first_answer_count / total_users, 
-                         incorrect_first_answer_count / total_users])
+        return np.array([incorrect_first_answer_count / total_users, 
+                         correct_first_answer_count / total_users])
 
     @staticmethod
     def _calculate_transition_probabilities(answer_counts, allow_forget):
