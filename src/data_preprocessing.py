@@ -1,7 +1,8 @@
 import json
 from collections import defaultdict
-from typing import Dict, Tuple, List, Literal
+from typing import Dict, List, Literal
 
+import os
 import pandas as pd
 
 
@@ -75,7 +76,7 @@ def clean_assistments_data(
 
 def return_assistments_dict_bkt(
         df_answers: pd.DataFrame,
-        df_skills: pd.DataFrame,
+        df_skills: pd.DataFrame
 ) -> Dict[str, List[List[Literal[0, 1]]]]:
     """
     Returns the assistments data as a Bayesian Knowledge Tracing (BKT) dictionary.
@@ -110,49 +111,14 @@ def return_assistments_dict_bkt(
     return skill_dict
 
 
-def return_assistments_dict_dkt(
-        input_file: str,
-        max_sequence_len: int,
-        min_appearances_per_problem: int,
-        min_answers_per_user: int
-) -> Dict[str, List[Tuple[int, Literal[0, 1]]]]:
-    """
-    Returns the assistments data as a Deep Knowledge Tracing (DKT) dictionary.
-
-    This function processes the data, filtering out problems and users that don't meet 
-    the required frequency criteria, and generates a dictionary of answers for each user.
-    
-    Parameters:
-    - input_file: str, path to the input CSV file containing the assistments data.
-    - max_sequence_len: int, The maximum sequence length allowed for each user.
-    - min_appearances_per_problem: int, The minimum number of appearances required for a problem to be valid.
-    - min_answers_per_user: int, The minimum number of answers required from each user.
-
-    Returns:
-    - dict: A dictionary where the keys are user IDs and the values are lists of tuples 
-      (problem_id, correct) representing each user’s interactions with problems.
-    """
-    # Load the dataset
-    df_data = return_assistments_df_dkt(input_file, max_sequence_len,
-                                        min_appearances_per_problem,
-                                        min_answers_per_user)
-
-    # Create the desired dictionary where each user_id maps to a list of (problem_id, correct) tuples
-    result_dict = defaultdict(list)
-
-    # Group by 'user_id' and iterate through each group
-    for user_id, user_group in df_data.groupby('user_id'):
-        result_dict[user_id] = list(zip(user_group['problem_id'], user_group['correct']))
-
-    return result_dict
-
 if __name__ == "__main__":
     # Define constants
     INPUT_FILE = 'data/raw/skill_builder_data.csv'
     OUTPUT_FOLDER = 'data/preprocessed/'
-    output_file_bkt = 'data/preprocessed/assistments_skill_dict.json'
+    OUTPUT_FILE_NAME_ANSWERS_DF = 'answers_df.csv'
+    OUTPUT_FILE_NAME_SKILLS_DF = 'answers_df.csv'
+    OUTPUT_FILE_NAME_SKILLS_D = 'skills_dict.json'
 
-    output_file_dkt = 'data/preprocessed/assistments_user_dict.json'
     MAX_USER_SEQUENCE_LEN = 400
     MIN_USER_SEQUENCE_LEN = 5
     MIN_ANSWERS_PER_PROBLEM = 10
@@ -177,20 +143,21 @@ if __name__ == "__main__":
     print(f'Number of skills: {num_skills}')
     print(f'Number of answers: {num_answers}')
 
+    OUTPUT_PATH_ANSWERS_DF = os.path.join(OUTPUT_FOLDER, OUTPUT_FILE_NAME_ANSWERS_DF)
+    OUTPUT_PATH_SKILLS_DF = os.path.join(OUTPUT_FOLDER, OUTPUT_FILE_NAME_SKILLS_DF)
+
+    # Save the DataFrame as a CSV
+    df_answers.to_csv(OUTPUT_PATH_ANSWERS_DF, index=False)
+    print(f"Answer dataframe saved to {OUTPUT_PATH_ANSWERS_DF}.")
+    df_skills.to_csv(OUTPUT_PATH_SKILLS_DF, index=False)
+    print(f"Skill dataframe saved to {OUTPUT_PATH_SKILLS_DF}.")
+
     # Process the assistments data and generate the skill dictionary (for BKT)
-    skill_dict = return_assistments_dict_bkt(
-        input_file, min_students_per_skill, min_sequence_length_per_skill)
+    skill_d = return_assistments_dict_bkt(df_answers, df_skills)
+
+    OUTPUT_PATH_SKILLS_D = os.path.join(OUTPUT_FOLDER, OUTPUT_FILE_NAME_SKILLS_D)
 
     # Save the skill dictionary to a JSON file
-    with open(output_file_bkt, 'w') as json_file:
-        json.dump(skill_dict, json_file)
-    print(f"Skill dictionary saved to {output_file_bkt}.")
-
-    # Process the assistments data and generate the user dictionary (for DKT)
-    user_dict = return_assistments_dict_dkt(
-        input_file, max_sequence_len, min_appearances_per_problem, min_answers_per_user)
-
-    # Save the user dictionary to a JSON file
-    with open(output_file_dkt, 'w') as json_file:
-        json.dump(user_dict, json_file)
-    print(f"User dictionary saved to {output_file_dkt}.")
+    with open(OUTPUT_PATH_SKILLS_D, 'w') as json_file:
+        json.dump(skill_d, json_file)
+    print(f"Skill dictionary saved to {OUTPUT_PATH_SKILLS_D}.")
