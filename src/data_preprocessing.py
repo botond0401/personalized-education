@@ -24,28 +24,6 @@ from typing import Dict, List, Literal
 import pandas as pd
 
 
-def _filter_skills_by_users(df: pd.DataFrame, min_users: int) -> pd.DataFrame:
-    """
-    Filters out skills that have fewer than the specified number of unique users.
-
-    This function groups the DataFrame by 'skill_id' and counts the number of unique users 
-    associated with each skill. It then filters the original DataFrame, keeping only the rows
-    where the 'skill_id' is associated with at least 'min_users' unique users.
-
-    Args:
-        df (pd.DataFrame): A DataFrame containing skill and user information, including 
-                            'skill_id' and 'user_id' columns.
-        min_users (int): The minimum number of unique users a skill must have to be retained.
-
-    Returns:
-        pd.DataFrame: A filtered DataFrame that only contains rows where the 'skill_id' 
-                       is associated with at least 'min_users' unique users.
-    """
-    skill_user_counts = df.groupby('skill_id')['user_id'].nunique()
-    valid_skills = skill_user_counts[skill_user_counts >= min_users].index
-    return df[df['skill_id'].isin(valid_skills)]
-
-
 def clean_assistments_data(
     input_file: str,
     max_user_sequence_len: int,
@@ -128,7 +106,9 @@ def clean_assistments_data(
 
     # Filter skills by user counts
     df_skills_merged = pd.merge(df_answers_valid, df_skills_valid, on='problem_id')
-    df_skills_valid = _filter_skills_by_users(df_skills_merged, min_user_per_skill)
+    skill_user_counts = df_skills_merged.groupby('skill_id')['user_id'].nunique()
+    valid_skills = skill_user_counts[skill_user_counts >= min_user_per_skill].index
+    df_skills_valid = df_skills_valid[df_skills_valid['skill_id'].isin(valid_skills)]
 
     # Filter skills by user sequence length
     user_skill_counts = df_skills_merged.groupby(['skill_id', 'user_id']).size().reset_index(name='user_count')
@@ -167,11 +147,15 @@ def return_assistments_dict_bkt(
     # Create a defaultdict to collect answer sequences per skill
     skill_dict = defaultdict(list)
 
-    # Group the DataFrame by skill_id and then by user_id
+    # Group the DataFrame by skill_id and user_id
     for skill_id, skill_group in df_data.groupby('skill_id'):
-        # Collect answer sequences for each user in the skill group
-        user_sequences = skill_group.groupby('user_id')['correct'].apply(list).tolist()
-        skill_dict[skill_id] = user_sequences
+        answer_list = []
+        for _, user_group in skill_group.groupby('user_id'):
+            # Extract the list of answers for this user
+            answers = user_group['correct'].tolist()
+            answer_list.append(answers)
+    
+        skill_dict[skill_id] = answer_list
 
     # Convert defaultdict to a regular dictionary and return
     return dict(skill_dict)
@@ -213,6 +197,7 @@ if __name__ == "__main__":
     MIN_ANSWERS_PER_PROBLEM = 10
     MIN_USERS_PER_SKILL = 10
     MIN_LEN_LONGEST_SEQ = 3
+    # reasoning behind the choices of these values can be found in 'notebooks/data_exploration.ipynb'
 
     # Clean and preprocess the data
     df_answers, df_skills = clean_assistments_data(
