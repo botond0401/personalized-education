@@ -1,150 +1,81 @@
 import json
 from collections import defaultdict
-from typing import List, Dict, Tuple, Literal
+from typing import Dict, Tuple, List, Literal
 
 import pandas as pd
 
 
-def return_assistments_df_bkt(input_file: str) -> pd.DataFrame:
-    """
-    Returns the assistments data as a preprocessed pandas dataframe for BKT.
-
-    This function loads the assistments data from a CSV file, selects relevant columns,
-    drops rows with missing values, removes duplicates, and sorts the data by user and order IDs.
-    
-    Parameters:
-    - input_file: str, path to the input CSV file containing the assistments data.
-    
-    Returns:
-    - pd.DataFrame: A preprocessed dataframe containing the assistments data, 
-      with relevant columns, cleaned and sorted.
-    """
-    # Load the dataset with encoding to handle non-UTF-8 characters
-    df_assistments = pd.read_csv(input_file, encoding='ISO-8859-1', low_memory=False)
-
-    # Prepare the data: select relevant columns and drop missing values
-    df_data = df_assistments[['order_id', 'user_id', 'correct', 'skill_id', 'problem_id',
-                              'ms_first_response', 'bottom_hint', 'opportunity']]
-    df_data = df_data.copy()
-    # Pad the 'opportunity' column with leading zeros to make it a 4-digit string
-    df_data['opportunity_padded'] = df_data.loc[:, 'opportunity'].apply(lambda x: f"{int(x):04d}")
-
-    # Create the 'timestamp' column by concatenating 'order_id' and padded 'opportunity'
-    df_data['timestamp'] = df_data.loc[:, 'order_id'].astype(str) + df_data['opportunity_padded']
-
-
-    # Drop rows where any of the specified columns have missing values
-    df_data = df_data.dropna(subset=['timestamp', 'user_id', 'correct', 'skill_id'])
-    df_data = df_data.drop_duplicates(subset=['timestamp', 'user_id', 'correct', 'problem_id','skill_id'])
-
-    
-    # Convert columns to appropriate data types
-    df_data['timestamp'] = df_data['timestamp'].astype(int)
-    df_data['user_id'] = df_data['user_id'].astype(int)
-    df_data['correct'] = df_data['correct'].astype(int)
-    df_data['skill_id'] = df_data['skill_id'].astype(int)
-    
-    # Sort the dataframe by user ID and order ID to maintain the sequence of events
-    df_data = df_data.sort_values(by=['user_id', 'timestamp'])
-
-    return df_data
-
-
-def return_assistments_df_dkt(
+def clean_assistments_data(
         input_file: str,
-        max_sequence_len: int,
-        min_appearances_per_problem: int,
-        min_answers_per_user: int
+        max_user_sequence_len: int,
+        min_user_sequence_len: int,
+        min_answers_per_problem: int,
+        min_user_per_skill: int,
+        min_len_longest_seq: int
         ) -> pd.DataFrame:
-    """
-    Returns the assistments data as a preprocessed pandas dataframe for DKT.
+    df_data = pd.read_csv(input_file, encoding='ISO-8859-1', low_memory=False)
+    columns_to_keep = ['order_id', 'user_id', 'correct', 'skill_id', 'skill_name', 'problem_id',
+                                'ms_first_response', 'bottom_hint', 'opportunity']
+    df_data_filtered = df_data[columns_to_keep]
+    df_data_filtered.isna().sum()
 
-    This function loads the assistments data from a CSV file, selects relevant columns,
-    drops rows with missing values, removes duplicates, and sorts the data by user and order IDs.
-    
-    Parameters:
-    - input_file: str, path to the input CSV file containing the assistments data.
-    
-    Returns:
-    - pd.DataFrame: A preprocessed dataframe containing the assistments data, 
-      with relevant columns, cleaned and sorted.
-    """
-    # Load the dataset with encoding to handle non-UTF-8 characters
-    df_assistments = pd.read_csv(input_file, encoding='ISO-8859-1', low_memory=False)
+    df_data_full = df_data_filtered.dropna(subset='skill_id')
 
-    # Prepare the data: select relevant columns and drop missing values
-    df_data = df_assistments[['order_id', 'user_id', 'correct', 'skill_id', 'problem_id',
-                              'ms_first_response', 'bottom_hint', 'opportunity']]
-    df_data = df_data.copy()
-        # Pad the 'opportunity' column with leading zeros to make it a 4-digit string
-    df_data['opportunity_padded'] = df_data.loc[:, 'opportunity'].apply(lambda x: f"{int(x):04d}")
+    df_data_full = df_data_full.copy()
+
+    df_data_full['bottom_hint'] = df_data_full['bottom_hint'].fillna(0)
+
+    df_data_full['opportunity_padded'] = df_data_full['opportunity'].apply(lambda x: f"{int(x):04d}")
 
     # Create the 'timestamp' column by concatenating 'order_id' and padded 'opportunity'
-    df_data['timestamp'] = df_data.loc[:, 'order_id'].astype(str) + df_data['opportunity_padded']
+    df_data_full['timestamp'] = df_data_full['order_id'].astype(str) + df_data_full['opportunity_padded']
 
-    # Drop rows where any of the specified columns have missing values
-    df_data = df_data.dropna(subset=['timestamp', 'user_id', 'correct', 'problem_id'])
-    
-    # Remove duplicate rows based on the specified subset of columns
-    df_data = df_data.drop_duplicates(subset=['timestamp', 'user_id', 'correct', 'problem_id'])
+    df_data_full.drop(columns=['opportunity', 'opportunity_padded', 'order_id'], inplace=True)
 
-    # Group the data by user_id and limit each user to a maximum sequence length
-    df_data = df_data.groupby('user_id').head(max_sequence_len).reset_index(drop=True)
+    df_data_full['skill_id'] = pd.to_numeric(df_data_full['skill_id'], errors='coerce').astype('Int64')
+    columns_to_int = ['correct', 'ms_first_response', 'bottom_hint']  # Replace with your column names
+    df_data_full[columns_to_int] = df_data_full[columns_to_int].astype(int)
 
-    # Filter problems based on the number of appearances
-    problem_counts = df_data['problem_id'].value_counts()
-    problems_to_keep = problem_counts[problem_counts >= min_appearances_per_problem].index
-    df_data = df_data[df_data['problem_id'].isin(problems_to_keep)]
+    # Convert specific columns to string
+    columns_to_str = ['user_id', 'skill_id', 'skill_name', 'problem_id', 'timestamp']  # Replace with your column names
+    df_data_full[columns_to_str] = df_data_full[columns_to_str].astype(str)
 
-    # Filter users based on the number of unique problems they've interacted with
-    user_problem_counts = df_data.groupby('user_id')['problem_id'].nunique()
-    users_to_keep = user_problem_counts[user_problem_counts >= min_answers_per_user].index
-    df_data = df_data[df_data['user_id'].isin(users_to_keep)]
-    
-    # Convert columns to appropriate data types
-    df_data['timestamp'] = df_data['timestamp'].astype(int)
-    df_data['user_id'] = df_data['user_id'].astype(int)
-    df_data['correct'] = df_data['correct'].astype(int)
-    df_data['problem_id'] = df_data['problem_id'].astype(int)
-    
-    # Sort the dataframe by user ID and order ID to maintain the sequence of events
-    df_data = df_data.sort_values(by=['user_id', 'timestamp'])
+    df_data_sorted = df_data_full.sort_values(by=['user_id', 'timestamp'])
 
-    return df_data
+    df_skills = df_data_sorted[['skill_id', 'skill_name', 'problem_id']].drop_duplicates().sort_values(by='skill_id').reset_index(drop=True)
+    df_answers = df_data_sorted.drop(columns=['skill_id', 'skill_name']).drop_duplicates().reset_index(drop=True)
 
+    filtered_df = df_answers.groupby('user_id').filter(lambda x: len(x) >= min_user_sequence_len)
 
-def _valid_answers(
-        answers: List[List[int]],
-        min_students_per_skill: int,
-        min_sequence_length_per_skill: int
-) -> bool:
-    """
-    Validates if the given answers meet the minimum required conditions.
+    # Then, for each user_id, keep only the first max_user_sequence_len rows
+    df_answers_valid = filtered_df.groupby('user_id').head(max_user_sequence_len)
 
-    This function checks if the skill has a sufficient number of students and if the 
-    maximum sequence length of answers per student exceeds the minimum threshold.
+    df_problems_valid = df_answers_valid.groupby('problem_id').filter(lambda x: len(x) >= min_answers_per_problem)
 
-    Parameters:
-    - answers: List[List[int]], A list of answers for different users (each user has a list of answers).
-    - min_students_per_skill: int, The minimum number of students required for a skill to be valid.
-    - min_sequence_length_per_skill: int, The minimum sequence length required for a skill to be valid.
+    df_skills = df_skills[df_skills['problem_id'].isin(df_problems_valid['problem_id'].unique())]
 
-    Returns:
-    - bool: True if the skill is valid based on the criteria, otherwise False.
-    """
-    # Calculate the maximum sequence length across all users' answers
-    max_sequence_length = max(len(answer) for answer in answers)
-    
-    # Check if the number of students and the max sequence length meet the minimum requirements
-    if len(answers) >= min_students_per_skill and max_sequence_length >= min_sequence_length_per_skill:
-        return True
-    return False
+    df_skills_merged = pd.merge(df_problems_valid, df_skills, on='problem_id')
+
+    df_skills_per_user = df_skills_merged.groupby('skill_id')['user_id'].nunique()
+    list_skills_to_drop = df_skills_per_user[df_skills_per_user < min_user_per_skill].index
+
+    df_skills = df_skills[~df_skills['skill_id'].isin(list_skills_to_drop)]
+    df_problems_valid = df_problems_valid[df_problems_valid['problem_id'].isin(df_skills['problem_id'].unique())]
+    df_skills_merged = pd.merge(df_problems_valid, df_skills, on='problem_id')
+
+    user_skill_counts = df_skills_merged.groupby(['skill_id', 'user_id']).size().reset_index(name='user_count')
+    df_max_user_count_per_skill = user_skill_counts.groupby('skill_id')['user_count'].max().reset_index()
+    df_skill_ids_to_keep = df_max_user_count_per_skill[df_max_user_count_per_skill['user_count'] > min_len_longest_seq]
+    list_skills_to_keep = df_skill_ids_to_keep['skill_id'].unique()
+    df_skills = df_skills[df_skills['skill_id'].isin(list_skills_to_keep)]
+    df_problems_valid = df_problems_valid[df_problems_valid['problem_id'].isin(df_skills['problem_id'].unique())]
+
+    return df_problems_valid, df_skills
 
 
 def return_assistments_dict_bkt(
-        input_file: str,
-        min_students_per_skill: int,
-        min_sequence_length_per_skill: int
+        df_answers: pd.DataFrame,
+        df_skills: pd.DataFrame,
 ) -> Dict[str, List[List[Literal[0, 1]]]]:
     """
     Returns the assistments data as a Bayesian Knowledge Tracing (BKT) dictionary.
@@ -152,20 +83,16 @@ def return_assistments_dict_bkt(
     This function processes the data, grouping it by skill and user, and ensures 
     that the answers meet the minimum criteria before appending them to the dictionary.
     
-    Parameters:
-    - input_file: str, path to the input CSV file containing the assistments data.
-    - min_students_per_skill: int, The minimum number of students required per skill.
-    - min_sequence_length_per_skill: int, The minimum sequence length required per skill.
 
     Returns:
     - dict: A dictionary where the keys are skill IDs and the values are lists of answers 
       (each answer is a list of integers 0 or 1) for each student.
     """
     # Load the dataset
-    df_data = return_assistments_df_bkt(input_file)
-    
     # Initialize a dictionary to map skill_ids to lists of users' answers
     skill_dict = defaultdict(list)
+
+    df_data = pd.merge(df_answers, df_skills, on='problem_id')
 
     # Group the DataFrame by skill_id and user_id
     for skill_id, skill_group in df_data.groupby('skill_id'):
@@ -175,9 +102,7 @@ def return_assistments_dict_bkt(
             answers = user_group['correct'].tolist()
             answer_list.append(answers)
     
-        # Validate the answers and add them to the dictionary if valid
-        if _valid_answers(answer_list, min_students_per_skill, min_sequence_length_per_skill):
-            skill_dict[skill_id] = answer_list
+        skill_dict[skill_id] = answer_list
 
     # Convert defaultdict to a regular dictionary and return
     skill_dict = dict(skill_dict)
@@ -221,24 +146,36 @@ def return_assistments_dict_dkt(
 
     return result_dict
 
-
 if __name__ == "__main__":
-    """
-    Main function to preprocess assistments data and save the generated dictionaries as JSON files.
-
-    This script loads raw assistments data, processes it for Bayesian Knowledge Tracing (BKT) 
-    and Deep Knowledge Tracing (DKT), and saves the results into JSON files.
-    """
     # Define constants
-    input_file = 'data/raw/skill_builder_data.csv'
+    INPUT_FILE = 'data/raw/skill_builder_data.csv'
+    OUTPUT_FOLDER = 'data/preprocessed/'
     output_file_bkt = 'data/preprocessed/assistments_skill_dict.json'
-    min_students_per_skill = 6
-    min_sequence_length_per_skill = 3
 
     output_file_dkt = 'data/preprocessed/assistments_user_dict.json'
-    max_sequence_len = 256
-    min_appearances_per_problem = 5
-    min_answers_per_user = 3
+    MAX_USER_SEQUENCE_LEN = 400
+    MIN_USER_SEQUENCE_LEN = 5
+    MIN_ANSWERS_PER_PROBLEM = 10
+    MIN_USERS_PER_SKILL = 10
+    MIN_LEN_LONGEST_SEQ = 3
+
+    df_answers, df_skills = clean_assistments_data(
+        input_file=INPUT_FILE,
+        max_user_sequence_len=MAX_USER_SEQUENCE_LEN,
+        min_user_sequence_len=MIN_USER_SEQUENCE_LEN,
+        min_answers_per_problem=MIN_ANSWERS_PER_PROBLEM,
+        min_user_per_skill=MIN_USERS_PER_SKILL,
+        min_len_longest_seq=MIN_LEN_LONGEST_SEQ,
+        )
+    
+    num_users = len(df_answers['user_id'].unique())
+    num_problems = len(df_skills['problem_id'].unique())
+    num_skills = len(df_skills['skill_id'].unique())
+    num_answers = len(df_answers)
+    print(f'Number of users: {num_users}')
+    print(f'Number of problems: {num_problems}')
+    print(f'Number of skills: {num_skills}')
+    print(f'Number of answers: {num_answers}')
 
     # Process the assistments data and generate the skill dictionary (for BKT)
     skill_dict = return_assistments_dict_bkt(
