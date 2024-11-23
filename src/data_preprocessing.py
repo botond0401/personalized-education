@@ -31,22 +31,21 @@ def clean_assistments_data(
         min_answers_per_problem: int,
         min_user_per_skill: int,
         min_len_longest_seq: int
-        ) -> pd.DataFrame:
+        ) -> tuple[pd.DataFrame, pd.DataFrame] | None:
     
     try:
         df_data = pd.read_csv(input_file, encoding='ISO-8859-1', low_memory=False)
-    except FileNotFoundError:
-        print(f"Error: File {input_file} not found.")
-        return None
+    except FileNotFoundError as e:
+        raise FileNotFoundError(f"Error: File '{input_file}' not found.") from e
     
     columns_to_keep = ['order_id', 'user_id', 'correct', 'skill_id', 'skill_name', 'problem_id',
                                 'ms_first_response', 'bottom_hint', 'opportunity']
+    if not all(col in df_data.columns for col in columns_to_keep):
+        raise ValueError("Input file missing required columns.")
     df_data_filtered = df_data[columns_to_keep]
     df_data_filtered.isna().sum()
 
     df_data_full = df_data_filtered.dropna(subset='skill_id')
-
-    df_data_full = df_data_full.copy()
 
     df_data_full['bottom_hint'] = df_data_full['bottom_hint'].fillna(0)
 
@@ -133,7 +132,12 @@ def return_assistments_dict_bkt(
     return dict(skill_dict)
 
 
-def _save_dataframe(df: pd.DataFrame, output_folder: str, output_file: str, description: str) -> None:
+def _save_dataframe(
+        df: pd.DataFrame,
+        output_folder: str,
+        output_file: str,
+        description: str
+        ) -> None:
     """
     Saves a DataFrame to a specified folder and logs the operation.
 
@@ -193,8 +197,8 @@ if __name__ == "__main__":
     _save_dataframe(df_skills, OUTPUT_FOLDER, OUTPUT_FILE_SKILLS_DF, "Skill dataframe")
 
     # Generate and save the skill dictionary for BKT
-    skill_dict = return_assistments_dict_bkt(df_answers, df_skills)
+    skill_d = return_assistments_dict_bkt(df_answers, df_skills)
     OUTPUT_PATH_SKILLS_D = os.path.join(OUTPUT_FOLDER, OUTPUT_FILE_SKILLS_D)
     with open(OUTPUT_PATH_SKILLS_D, 'w', encoding='utf-8') as json_file:
-        json.dump(skill_dict, json_file)
+        json.dump(skill_d, json_file)
     print(f"Skill dictionary saved to {OUTPUT_PATH_SKILLS_D}.")
