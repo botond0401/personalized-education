@@ -116,7 +116,7 @@ if __name__ == "__main__":
     INPUT_FILE = 'data/raw/skill_builder_data.csv'
     OUTPUT_FOLDER = 'data/preprocessed/'
     OUTPUT_FILE_NAME_ANSWERS_DF = 'answers_df.csv'
-    OUTPUT_FILE_NAME_SKILLS_DF = 'answers_df.csv'
+    OUTPUT_FILE_NAME_SKILLS_DF = 'skills_df.csv'
     OUTPUT_FILE_NAME_SKILLS_D = 'skills_dict.json'
 
     MAX_USER_SEQUENCE_LEN = 400
