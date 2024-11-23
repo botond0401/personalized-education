@@ -5,7 +5,7 @@ from .bkt_prediction import BKTPrediction
 from .bkt_evaluation import calculate_auc
 
 class ModelBKT(hmm.CategoricalHMM):
-    def __init__(self, skill_id, user_answers, initial_probs=None, trans_probs=None, emit_probs=None):
+    def __init__(self, skill_id, user_answers, initial_probs=None, trans_probs=None, emit_probs=None, allow_forget=False):
         """
         Initializes a BKT model for a specific skill using HMM.
 
@@ -23,23 +23,30 @@ class ModelBKT(hmm.CategoricalHMM):
             raise ValueError("Each user answer must be an integer (0 or 1).")
 
         # Initialize as a CategoricalHMM with 2 states
-        super().__init__(n_components=2, init_params="")
+        super().__init__(n_components=2, n_features=2, init_params="")
+
 
         self.skill_id = skill_id
         self.user_answers = user_answers
         self.n_users = len(user_answers)
+        all_answers = [answer for answers in self.user_answers for answer in answers]
+        num_zeros = all_answers.count(0)
+        num_ones = all_answers.count(1)
+        if (num_zeros / (num_ones+1e-10) < 0.1) or (num_ones / (num_zeros+1e-10) < 0.1):
+            assert ValueError("Training data is too imbalanced.")
 
         # Set initial parameters if provided
         self.startprob_ = initial_probs
         self.transmat_ = trans_probs
         self.emissionprob_ = emit_probs
+        self.allow_forget = allow_forget
 
     def fit(self):
         """
         Fit the BKT model using user answers.
         """
         if (self.startprob_ is None) or (self.transmat_ is None) or (self.emissionprob_ is None):
-            BKTInitialization.set_initial_parameters(self)
+            BKTInitialization.set_initial_parameters(self, self.allow_forget)
 
         # Prepare the data
         X = np.concatenate([[[answer] for answer in answers] for answers in self.user_answers])
@@ -74,9 +81,9 @@ class ModelBKT(hmm.CategoricalHMM):
         predictor = BKTPrediction()
         return predictor.predict(self, observations)
 
-    def self_evaluate(self):
+    def evaluate(self, test_user_answers):
         """
         Evaluate the model using AUC score based on user answers.
         """
-        predictions = self.predict(self.user_answers)
-        return calculate_auc(self.user_answers, predictions)
+        predictions = self.predict(test_user_answers)
+        return calculate_auc(test_user_answers, predictions)

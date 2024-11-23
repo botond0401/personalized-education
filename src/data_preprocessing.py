@@ -24,19 +24,28 @@ def return_assistments_df_bkt(input_file: str) -> pd.DataFrame:
 
     # Prepare the data: select relevant columns and drop missing values
     df_data = df_assistments[['order_id', 'user_id', 'correct', 'skill_id', 'problem_id',
-                              'ms_first_response', 'bottom_hint']]
+                              'ms_first_response', 'bottom_hint', 'opportunity']]
+    df_data = df_data.copy()
+    # Pad the 'opportunity' column with leading zeros to make it a 4-digit string
+    df_data['opportunity_padded'] = df_data.loc[:, 'opportunity'].apply(lambda x: f"{int(x):04d}")
+
+    # Create the 'timestamp' column by concatenating 'order_id' and padded 'opportunity'
+    df_data['timestamp'] = df_data.loc[:, 'order_id'].astype(str) + df_data['opportunity_padded']
+
 
     # Drop rows where any of the specified columns have missing values
-    df_data = df_data.dropna(subset=['order_id', 'user_id', 'correct', 'skill_id'])
+    df_data = df_data.dropna(subset=['timestamp', 'user_id', 'correct', 'skill_id'])
+    df_data = df_data.drop_duplicates(subset=['timestamp', 'user_id', 'correct', 'problem_id','skill_id'])
+
     
     # Convert columns to appropriate data types
-    df_data['order_id'] = df_data['order_id'].astype(int)
+    df_data['timestamp'] = df_data['timestamp'].astype(int)
     df_data['user_id'] = df_data['user_id'].astype(int)
     df_data['correct'] = df_data['correct'].astype(int)
     df_data['skill_id'] = df_data['skill_id'].astype(int)
     
     # Sort the dataframe by user ID and order ID to maintain the sequence of events
-    df_data = df_data.sort_values(by=['user_id', 'order_id'])
+    df_data = df_data.sort_values(by=['user_id', 'timestamp'])
 
     return df_data
 
@@ -65,13 +74,19 @@ def return_assistments_df_dkt(
 
     # Prepare the data: select relevant columns and drop missing values
     df_data = df_assistments[['order_id', 'user_id', 'correct', 'skill_id', 'problem_id',
-                              'ms_first_response', 'bottom_hint']]
+                              'ms_first_response', 'bottom_hint', 'opportunity']]
+    df_data = df_data.copy()
+        # Pad the 'opportunity' column with leading zeros to make it a 4-digit string
+    df_data['opportunity_padded'] = df_data.loc[:, 'opportunity'].apply(lambda x: f"{int(x):04d}")
+
+    # Create the 'timestamp' column by concatenating 'order_id' and padded 'opportunity'
+    df_data['timestamp'] = df_data.loc[:, 'order_id'].astype(str) + df_data['opportunity_padded']
 
     # Drop rows where any of the specified columns have missing values
-    df_data = df_data.dropna(subset=['order_id', 'user_id', 'correct', 'problem_id'])
+    df_data = df_data.dropna(subset=['timestamp', 'user_id', 'correct', 'problem_id'])
     
     # Remove duplicate rows based on the specified subset of columns
-    df_data = df_data.drop_duplicates(subset=['order_id', 'user_id', 'correct', 'problem_id'])
+    df_data = df_data.drop_duplicates(subset=['timestamp', 'user_id', 'correct', 'problem_id'])
 
     # Group the data by user_id and limit each user to a maximum sequence length
     df_data = df_data.groupby('user_id').head(max_sequence_len).reset_index(drop=True)
@@ -87,13 +102,13 @@ def return_assistments_df_dkt(
     df_data = df_data[df_data['user_id'].isin(users_to_keep)]
     
     # Convert columns to appropriate data types
-    df_data['order_id'] = df_data['order_id'].astype(int)
+    df_data['timestamp'] = df_data['timestamp'].astype(int)
     df_data['user_id'] = df_data['user_id'].astype(int)
     df_data['correct'] = df_data['correct'].astype(int)
     df_data['problem_id'] = df_data['problem_id'].astype(int)
     
     # Sort the dataframe by user ID and order ID to maintain the sequence of events
-    df_data = df_data.sort_values(by=['user_id', 'order_id'])
+    df_data = df_data.sort_values(by=['user_id', 'timestamp'])
 
     return df_data
 
@@ -217,7 +232,7 @@ if __name__ == "__main__":
     # Define constants
     input_file = 'data/raw/skill_builder_data.csv'
     output_file_bkt = 'data/preprocessed/assistments_skill_dict.json'
-    min_students_per_skill = 10
+    min_students_per_skill = 6
     min_sequence_length_per_skill = 3
 
     output_file_dkt = 'data/preprocessed/assistments_user_dict.json'
