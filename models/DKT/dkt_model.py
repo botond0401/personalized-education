@@ -2,8 +2,6 @@ import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-from .dkt_embedding import CustomEmbeddingLayer
-
 # Define the DKT model
 
 
@@ -12,7 +10,7 @@ class DKT(nn.Module):
         super(DKT, self).__init__()
 
         # Custom embedding layer for (problem_id, correct) pairs
-        self.embedding = CustomEmbeddingLayer(num_items, embed_dim)
+        self.embedding = nn.Embedding(num_items * 2 + 1, embed_dim, padding_idx=0)
 
         # RNN layer
         self.rnn = nn.LSTM(embed_dim, hid_size, num_hid_layers, batch_first=True)
