@@ -31,6 +31,7 @@ def clean_assistments_data(
     min_answers_per_problem: int,
     min_user_per_skill: int,
     min_len_longest_seq: int,
+    num_steps: int = 3
 ) -> tuple[pd.DataFrame, pd.DataFrame] | None:
     """
     Cleans and preprocesses the Assistments dataset.
@@ -42,6 +43,7 @@ def clean_assistments_data(
         min_answers_per_problem (int): Minimum answers required per problem.
         min_user_per_skill (int): Minimum users per skill.
         min_len_longest_seq (int): Minimum length of the longest user sequence per skill.
+        num_steps (int): How many times to do all the checks.
 
     Returns:
         tuple[pd.DataFrame, pd.DataFrame]: Processed dataframes for problems and skills.
@@ -87,39 +89,41 @@ def clean_assistments_data(
     df_skills_basic = df_data_sorted[['skill_id', 'skill_name', 'problem_id']].drop_duplicates()
     df_answers_basic = df_data_sorted.drop(columns=['skill_id', 'skill_name']).drop_duplicates()
 
-    # Filter answers by user sequence length
-    df_answers_valid = (
-        df_answers_basic.groupby('user_id')
-        .filter(lambda x: len(x) >= min_user_sequence_len) # a user has to have at least 'min_user_sequence_len' answers
-        .groupby('user_id')
-        .head(max_user_sequence_len) # a user can have at most 'max_user_sequence_len' answers
-    )
+    for _ in range(num_steps):
+        # Filter answers by user sequence length
+        df_answers_valid = (
+            df_answers_basic.groupby('user_id')
+            .filter(lambda x: len(x) >= min_user_sequence_len) # a user has to have at least 'min_user_sequence_len' answers
+            .groupby('user_id')
+            .head(max_user_sequence_len) # a user can have at most 'max_user_sequence_len' answers
+        )
 
-    # Filter problems by minimum answers
-    df_answers_valid = df_answers_valid.groupby('problem_id').filter(
-        lambda x: len(x) >= min_answers_per_problem # an answer has to appear at least 'min_answers_per_problem' times
-    )
+        # Filter problems by minimum answers
+        df_answers_valid = df_answers_valid.groupby('problem_id').filter(
+            lambda x: len(x) >= min_answers_per_problem # an answer has to appear at least 'min_answers_per_problem' times
+        )
 
-    # Filter skills by valid problems
-    valid_problem_ids = df_answers_valid['problem_id']
-    df_skills_valid = df_skills_basic[df_skills_basic['problem_id'].isin(valid_problem_ids)]
+        # Filter skills by valid problems
+        valid_problem_ids = df_answers_valid['problem_id']
+        df_skills_valid = df_skills_basic[df_skills_basic['problem_id'].isin(valid_problem_ids)]
 
-    # Filter skills by user counts
-    df_skills_merged = pd.merge(df_answers_valid, df_skills_valid, on='problem_id')
-    skill_user_counts = df_skills_merged.groupby('skill_id')['user_id'].nunique()
-    valid_skills = skill_user_counts[skill_user_counts >= min_user_per_skill].index
-    df_skills_valid = df_skills_valid[df_skills_valid['skill_id'].isin(valid_skills)]
+        # Filter skills by user counts
+        df_skills_merged = pd.merge(df_answers_valid, df_skills_valid, on='problem_id')
+        skill_user_counts = df_skills_merged.groupby('skill_id')['user_id'].nunique()
+        valid_skills = skill_user_counts[skill_user_counts >= min_user_per_skill].index
+        df_skills_valid = df_skills_valid[df_skills_valid['skill_id'].isin(valid_skills)]
 
-    # Filter skills by user sequence length
-    user_skill_counts = df_skills_merged.groupby(['skill_id', 'user_id']).size().reset_index(name='user_count')
-    df_max_user_count_per_skill = user_skill_counts.groupby('skill_id')['user_count'].max()
-    valid_skills = df_max_user_count_per_skill[df_max_user_count_per_skill > min_len_longest_seq].index
-    df_skills_final = df_skills_valid[df_skills_valid['skill_id'].isin(valid_skills)]
+        # Filter skills by user sequence length
+        user_skill_counts = df_skills_merged.groupby(['skill_id', 'user_id']).size().reset_index(name='user_count')
+        df_max_user_count_per_skill = user_skill_counts.groupby('skill_id')['user_count'].max()
+        valid_skills = df_max_user_count_per_skill[df_max_user_count_per_skill > min_len_longest_seq].index
 
-    # Filter problems again based on skills
-    df_answers_final = df_answers_valid[df_answers_valid['problem_id'].isin(df_skills_final['problem_id'])]
+        df_skills_basic = df_skills_valid[df_skills_valid['skill_id'].isin(valid_skills)]
 
-    return df_answers_final, df_skills_final
+        # Filter problems again based on skills
+        df_answers_basic = df_answers_valid[df_answers_valid['problem_id'].isin(df_skills_basic['problem_id'])]
+
+    return df_answers_basic, df_skills_basic
 
 
 def return_assistments_dict_bkt(
