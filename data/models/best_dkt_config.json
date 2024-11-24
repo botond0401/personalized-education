@@ -1,0 +1,10 @@
+{
+    "learning_rate": 0.001,
+    "models_params": {
+        "num_items": 8209,
+        "embed_dim": 9,
+        "hid_size": 200,
+        "num_hid_layers": 2,
+        "drop_prob": 0.5
+    }
+}

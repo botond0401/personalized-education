@@ -36,7 +36,9 @@ class DKT(nn.Module):
             Tensor: Output probabilities of shape (batch_size, seq_len, num_items).
         """
         # Embed the input sequence
-        embedded = self.embedding(inputs)
+        indices = inputs[:, :, 0] * 2 - inputs[:, :, 1] # Adjust for padding index 0
+
+        embedded = self.embedding(indices)
 
         # Pack the padded sequence for the RNN
         packed_embedded = pack_padded_sequence(embedded, lengths, batch_first=True, enforce_sorted=False)
