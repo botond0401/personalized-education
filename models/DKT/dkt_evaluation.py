@@ -44,8 +44,12 @@ def calculate_auc(predictions, answers):
     Calculate the AUC (Area Under the Curve) for a sequence of predictions and labels.
 
     Args:
-        predictions (Tensor): Raw output logits from the model, shape (batch_size, seq_len, num_items).
+        predictions (Tensor): A tensor of probabilities, shape (batch_size, seq_len, num_items),
+                              where each entry represents the probability of correctly answering
+                              a specific problem.
         answers (Tensor): Input tensor of shape (batch_size, seq_len, 2), where each entry is [problem_id, label].
+                          - problem_id: The ID of the problem.
+                          - label: Binary label (0 or 1), indicating if the answer was correct.
 
     Returns:
         auc (float): AUC score for the batch.
@@ -59,17 +63,14 @@ def calculate_auc(predictions, answers):
     problem_ids = torch.clamp(problem_ids, min=0)  # Ensure no problem_id is negative
 
     # Gather the logits for the correct problem_id for each student and time step
-    selected_logits = predictions.gather(2, problem_ids.unsqueeze(-1))  # Shape (batch_size, seq_len, 1)
+    selected_predictions = predictions.gather(2, problem_ids.unsqueeze(-1))  # Shape (batch_size, seq_len, 1)
 
     # Squeeze to remove the last dimension (as we have one probability per student per task)
-    selected_logits = selected_logits.squeeze(-1)  # Shape (batch_size, seq_len)
-
-    # Apply the sigmoid to get probabilities
-    probabilities = torch.sigmoid(selected_logits)
+    selected_predictions = selected_predictions.squeeze(-1)  # Shape (batch_size, seq_len)
 
     # Flatten the tensors for AUC computation
     labels_flat = labels.view(-1).cpu().numpy()
-    probabilities_flat = probabilities.view(-1).cpu().detach().numpy()
+    probabilities_flat = selected_predictions.view(-1).cpu().detach().numpy()
 
     # Calculate AUC using sklearn
     auc = roc_auc_score(labels_flat, probabilities_flat)

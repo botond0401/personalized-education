@@ -193,7 +193,7 @@ if __name__ == "__main__":
     INPUT_FILE = 'data/raw/skill_builder_data.csv'
     OUTPUT_FOLDER = 'data/preprocessed/'
     OUTPUT_FILE_ANSWERS_DF = 'answers_df.csv'
-    OUTPUT_FILE_SKILLS_DF = 'skills_df.csv'
+    OUTPUT_FILE_ANSWER_SKILL_MAPPING_DF = 'answer_skill_mapping_df.csv'
     OUTPUT_FILE_SKILLS_D = 'skills_dict.json'
 
     MAX_USER_SEQUENCE_LEN = 400
@@ -228,7 +228,7 @@ if __name__ == "__main__":
 
     # Save processed data
     _save_dataframe(df_answers, OUTPUT_FOLDER, OUTPUT_FILE_ANSWERS_DF, "Answer dataframe")
-    _save_dataframe(df_skills, OUTPUT_FOLDER, OUTPUT_FILE_SKILLS_DF, "Skill dataframe")
+    _save_dataframe(df_skills, OUTPUT_FOLDER, OUTPUT_FILE_ANSWER_SKILL_MAPPING_DF, "Skill dataframe")
 
     # Generate and save the skill dictionary for BKT
     skill_d = return_assistments_dict_bkt(df_answers, df_skills)
