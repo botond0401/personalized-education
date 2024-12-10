@@ -63,67 +63,97 @@ def clean_assistments_data(
     df_data_filtered = df_data[columns_to_keep]
 
     # Drop rows without skill_id and fill missing values
-    df_data_filtered = df_data_filtered.dropna(subset=['skill_id']).copy()
-    df_data_filtered['bottom_hint'] = df_data_filtered['bottom_hint'].fillna(0)
+    df_data_full = df_data_filtered.dropna(subset=['skill_id']).copy()
+    df_data_full['bottom_hint'] = df_data_full['bottom_hint'].fillna(0)
 
     # Create the 'timestamp' column
-    df_data_filtered['opportunity_padded'] = df_data_filtered['opportunity'].apply(
+    df_data_full['opportunity_padded'] = df_data_full['opportunity'].apply(
         lambda x: f"{int(x):04d}"
     )
-    df_data_filtered['timestamp'] = (
-        df_data_filtered['order_id'].astype(str) + df_data_filtered['opportunity_padded']
+    df_data_full['timestamp'] = (
+        df_data_full['order_id'].astype(str) + df_data_full['opportunity_padded']
     )
-    df_data_filtered.drop(columns=['opportunity', 'opportunity_padded', 'order_id'], inplace=True)
+    df_data_full.drop(columns=['opportunity', 'opportunity_padded', 'order_id'], inplace=True)
 
     # Type conversion
-    df_data_filtered['skill_id'] = pd.to_numeric(df_data_filtered['skill_id'], errors='coerce').astype('Int64')
-    for col in ['correct', 'ms_first_response', 'bottom_hint']:
-        df_data_filtered[col] = df_data_filtered[col].astype(int)
-    for col in ['user_id', 'skill_id', 'skill_name', 'problem_id', 'timestamp']:
-        df_data_filtered[col] = df_data_filtered[col].astype(str)
+    df_data_full['skill_id'] = pd.to_numeric(df_data_full['skill_id'], errors='coerce').astype('Int64')
+    columns_to_int = ['correct', 'ms_first_response', 'bottom_hint']  # Replace with your column names
+    df_data_full[columns_to_int] = df_data_full[columns_to_int].astype(int)
 
-    # Sort by user_id and timestamp
-    df_data_sorted = df_data_filtered.sort_values(by=['user_id', 'timestamp'])
+    # Convert specific columns to string
+    columns_to_str = ['user_id', 'skill_id', 'skill_name', 'problem_id', 'timestamp']  # Replace with your column names
+    df_data_full[columns_to_str] = df_data_full[columns_to_str].astype(str)
 
-    # Prepare separate dataframes for answers and skills
-    df_skills_basic = df_data_sorted[['skill_id', 'skill_name', 'problem_id']].drop_duplicates()
-    df_answers_basic = df_data_sorted.drop(columns=['skill_id', 'skill_name']).drop_duplicates()
+    df_data_sorted = df_data_full.sort_values(by=['user_id', 'timestamp'])
 
-    for _ in range(num_steps):
-        # Filter answers by user sequence length
-        df_answers_valid = (
-            df_answers_basic.groupby('user_id')
-            .filter(lambda x: len(x) >= min_user_sequence_len) # a user has to have at least 'min_user_sequence_len' answers
-            .groupby('user_id')
-            .head(max_user_sequence_len) # a user can have at most 'max_user_sequence_len' answers
-        )
+    # Prepare separate dataframes
+    df_skill_problem_mapping = df_data_sorted[['skill_id', 'skill_name', 'problem_id']].drop_duplicates().sort_values(by='skill_id').reset_index(drop=True)
+    df_answers = df_data_sorted.drop(columns=['skill_id', 'skill_name']).drop_duplicates().reset_index(drop=True)
+    df_answers = df_answers.merge(df_skill_problem_mapping, on='problem_id')
 
-        # Filter problems by minimum answers
-        df_answers_valid = df_answers_valid.groupby('problem_id').filter(
-            lambda x: len(x) >= min_answers_per_problem # an answer has to appear at least 'min_answers_per_problem' times
-        )
+    cols = df_answers.columns.tolist()
+    cols[-1], cols[1] = cols[1], cols[-1]  # Swap second and last column positions
+    df_answers = df_answers[cols]  # Reorder the DataFrame with the new column order
 
-        # Filter skills by valid problems
-        valid_problem_ids = df_answers_valid['problem_id']
-        df_skills_valid = df_skills_basic[df_skills_basic['problem_id'].isin(valid_problem_ids)]
+    # Step 2: Shuffle the DataFrame
+    df_answers = df_answers.sample(frac=1, random_state=42).reset_index(drop=True)
 
-        # Filter skills by user counts
-        df_skills_merged = pd.merge(df_answers_valid, df_skills_valid, on='problem_id')
-        skill_user_counts = df_skills_merged.groupby('skill_id')['user_id'].nunique()
-        valid_skills = skill_user_counts[skill_user_counts >= min_user_per_skill].index
-        df_skills_valid = df_skills_valid[df_skills_valid['skill_id'].isin(valid_skills)]
+    # Step 3: Order the DataFrame by 'user_id' and 'timestamp'
+    df_answers = df_answers.sort_values(by=['user_id', 'timestamp']).reset_index(drop=True)
 
-        # Filter skills by user sequence length
-        user_skill_counts = df_skills_merged.groupby(['skill_id', 'user_id']).size().reset_index(name='user_count')
-        df_max_user_count_per_skill = user_skill_counts.groupby('skill_id')['user_count'].max()
-        valid_skills = df_max_user_count_per_skill[df_max_user_count_per_skill > min_len_longest_seq].index
+    # Create a binary column for each skill_id
+    columns_to_keep = ["user_id", "timestamp", "problem_id", "ms_first_response", "bottom_hint", "correct"]
 
-        df_skills_basic = df_skills_valid[df_skills_valid['skill_id'].isin(valid_skills)]
+    df_answers_pivot = df_answers.pivot_table(
+        index=columns_to_keep,
+        columns="skill_id",
+        aggfunc="size",
+        fill_value=0
+    ).reset_index()
 
-        # Filter problems again based on skills
-        df_answers_basic = df_answers_valid[df_answers_valid['problem_id'].isin(df_skills_basic['problem_id'])]
+    # Flatten the column names
+    df_answers_pivot.columns.name = None
+    df_answers_pivot = df_answers_pivot.rename_axis(None, axis=1)
+    # Sort
+    df_answers_pivot = df_answers_pivot.sort_values(by=['user_id', 'timestamp'])
 
-    return df_answers_basic, df_skills_basic
+    df_filtered_user = df_answers_pivot.groupby('user_id').filter(lambda x: len(x) >= min_user_sequence_len)
+
+    # Then, for each user_id, keep only the first max_user_sequence_len rows
+    df_answers_valid_user = df_filtered_user.groupby('user_id').head(max_user_sequence_len)
+
+    # Step 1: Count occurrences for each skill ID (sum the binary columns)
+    num_non_skill_columns = len(columns_to_keep)
+
+    # Assuming binary skill columns start from 3rd column onward
+    skill_occurrences = df_answers_valid_user.iloc[:, num_non_skill_columns:].sum()
+
+    # Step 1: Identify skill_ids with less than 10 unique users
+    skills_to_remove = skill_occurrences[skill_occurrences < min_user_per_skill].index
+
+    # Step 2: Remove these skill_ids from the DataFrame
+    df_answers_valid_skills = df_answers_valid_user[[col for col in df_answers_valid_user.columns if col not in skills_to_remove]]
+    # Keep only rows where the sum of skill columns is not 0
+    df_answers_valid_skills = df_answers_valid_skills[df_answers_valid_skills.iloc[:, num_non_skill_columns:].sum(axis=1) != 0]
+
+    # Step 1: Count how many times each user_id appears for each skill_id
+    user_skill_counts = df_answers_valid_skills.groupby('user_id').sum()
+
+    # Step 2: Find the maximum user_count for each skill_id
+    max_skill_counts = user_skill_counts.iloc[:, num_non_skill_columns-1:].max()
+
+    # Step 1: Identify skill_ids with less than 10 unique users
+    skills_to_remove = max_skill_counts[max_skill_counts < min_len_longest_seq].index
+
+    # Step 2: Remove these skill_ids from the DataFrame
+    df_answers_valid_skills = df_answers_valid_skills[[col for col in df_answers_valid_skills.columns if col not in skills_to_remove]]
+    # Keep only rows where the sum of skill columns is not 0
+    df_answers_valid_skills = df_answers_valid_skills[df_answers_valid_skills.iloc[:, num_non_skill_columns:].sum(axis=1) != 0]
+
+    valid_skill_ids = df_answers_valid_skills.columns[num_non_skill_columns:]
+    df_skill_name_mapping = df_skill_problem_mapping.loc[df_skill_problem_mapping['skill_id'].isin(valid_skill_ids), ['skill_id', 'skill_name']].drop_duplicates()
+
+    return df_answers_valid_skills, df_skill_name_mapping
 
 
 def return_assistments_dict_bkt(
