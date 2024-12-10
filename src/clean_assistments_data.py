@@ -20,8 +20,6 @@ Usage:
 """
 
 import os
-from collections import defaultdict
-from typing import Literal
 
 import pandas as pd
 
@@ -118,7 +116,7 @@ def clean_assistments_data(
 
     # Remove skills with insufficient users
     num_non_skill_columns = len(columns_to_keep)
-    skill_occurrences = df_answers_valid_user.iloc[:, num_non_skill_columns:].sum()
+    skill_occurrences = df_answers_valid_user.groupby('user_id').max().iloc[:, num_non_skill_columns-1:].sum()
     skills_to_remove = skill_occurrences[skill_occurrences < min_user_per_skill].index
     df_answers_valid_skills = df_answers_valid_user[[col for col in df_answers_valid_user.columns if col not in skills_to_remove]]
     df_answers_valid_skills = df_answers_valid_skills[df_answers_valid_skills.iloc[:, num_non_skill_columns:].sum(axis=1) != 0]
@@ -132,6 +130,25 @@ def clean_assistments_data(
 
     valid_skill_ids = df_answers_valid_skills.columns[num_non_skill_columns:]
     df_valid_skill_names = df_skill_problem_mapping.loc[df_skill_problem_mapping['skill_id'].isin(valid_skill_ids), ['skill_id', 'skill_name']].drop_duplicates()
+
+    user_counts = df_answers_valid_skills['user_id'].value_counts()
+    min_user_counts = user_counts.min()
+    max_user_counts = user_counts.max()
+    if min_user_counts < min_user_sequence_len:
+        print(f"WARNING!! The minimum #appearances of a user ({min_user_counts}) is below the threshold ({min_user_sequence_len}).")
+    if max_user_counts > max_user_sequence_len:
+        print(f"WARNING!! The maximum #appearances of a user ({max_user_counts}) is above the threshold ({max_user_sequence_len}).")
+
+    skill_occurrences = df_answers_valid_skills.groupby('user_id').max().iloc[:, num_non_skill_columns-1:].sum()  # Assuming binary skill columns start from 3rd column onward
+    min_skill_occurences = skill_occurrences.min()
+    if min_skill_occurences < min_user_per_skill:
+        print(f"WARNING!! The minimum #users of a skill ({min_skill_occurences}) is below the threshold ({min_user_per_skill}).")
+
+    user_skill_counts = df_answers_valid_skills.groupby('user_id').sum()
+    max_skill_counts = user_skill_counts.iloc[:, num_non_skill_columns-1:].max()
+    min_max_skill_counts = max_skill_counts.min()
+    if min_max_skill_counts < min_len_longest_seq:
+        print(f"WARNING!! The minimum longest sequence length amongst the skills ({min_max_skill_counts}) is below the threshold ({min_len_longest_seq}).")
 
     return df_answers_valid_skills, df_valid_skill_names
 

@@ -22,8 +22,6 @@ from typing import Union, List
 import pandas as pd
 
 
-
-
 class KTDataset():
     def __init__(self,
                  df_answers,
@@ -35,8 +33,8 @@ class KTDataset():
         self.df_answers = df_answers
         self.df_skill_names = df_skill_names
         self.num_skills = len(df_skill_names)
-        self.BKT_dataset = None
-        self.DKT_dataset = None
+        self.BKT_datadict = None
+        self.DKT_datadict = None
 
         if renumber_skill_ids:
             # Map original skill IDs to a continuous range starting from 1
@@ -48,10 +46,10 @@ class KTDataset():
             self.skill_id_mapping = None
 
         if prepare_BKT:
-            self.create_BKT_dataset()
+            self.create_BKT_datadict()
 
         if prepare_DKT:
-            self.create_DKT_dataset()
+            self.create_DKT_datadict()
 
 
 
@@ -93,7 +91,7 @@ class KTDataset():
             raise TypeError("IDs must be an int, str, or a list of int/str.")
         
 
-    def create_BKT_dataset(self):
+    def create_BKT_datadict(self):
         """
         Converts Assistments data into a Bayesian Knowledge Tracing (BKT) dictionary.
 
@@ -113,10 +111,10 @@ class KTDataset():
             answer_list = df_answers_filtered.groupby('user_id')['correct'].apply(list)
 
             # Collect all answer sequences for the current skill
-            skill_dict[skill_name] = answer_list.tolist()
+            skill_dict[f"{skill_id} ({skill_name})"] = answer_list.tolist()
 
         # Convert defaultdict to a regular dictionary and return
-        self.BKT_dataset = dict(skill_dict)
+        self.BKT_datadict = dict(skill_dict)
     
 
 
@@ -129,13 +127,4 @@ class KTDataset():
 
 
 
-
-
-
-
-df_answers = pd.read_csv('data/preprocessed/df_answers.csv')
-df_skill_names = pd.read_csv('data/preprocessed/df_skill_names.csv')
-
-dataset = KTDataset(df_answers, df_skill_names)
-dataset.create_BKT_dataset()
 
