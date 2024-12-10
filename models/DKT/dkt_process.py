@@ -3,7 +3,7 @@ import torch
 import sys
 from .dkt_evaluation import calculate_auc
 
-def process(model, loader, criterion, device, optim=None):
+def process(model, loader, device, optim=None):
     """
     Process the data in the given loader for either training or evaluation.
 
@@ -40,7 +40,7 @@ def process(model, loader, criterion, device, optim=None):
 
           # Forward pass
           outputs = model(sequences, lengths)
-          loss = criterion(outputs, labels)
+          loss = calculate_DKT_loss(outputs, labels)
           auc = calculate_auc(outputs, labels)
 
           if optim is not None:  # Only during training

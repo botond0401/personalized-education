@@ -3,28 +3,29 @@ import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 # Define the DKT model
-
-
 class DKT(nn.Module):
-    def __init__(self, num_items, embed_dim, hid_size, num_hid_layers, drop_prob):
+    def __init__(self, num_skills, num_other, embed_dim, hid_size, num_hid_layers, drop_prob):
         super(DKT, self).__init__()
 
-        # Custom embedding layer for (problem_id, correct) pairs
-        self.embedding = nn.Embedding(num_items * 2 + 1, embed_dim, padding_idx=0)
+        # Custom embedding layer
+        self.embedding = nn.Sequential(
+            nn.Linear(num_skills, embed_dim),
+            nn.ReLU()  # or nn.LeakyReLU() for a small gradient when inactive
+            )
 
         # RNN layer
-        self.rnn = nn.LSTM(embed_dim, hid_size, num_hid_layers, batch_first=True)
+        self.rnn = nn.LSTM(embed_dim + num_other, hid_size, num_hid_layers, batch_first=True)
 
         # Dropout layer for regularization
         self.dropout = nn.Dropout(p=drop_prob)
 
         # Output layer mapping hidden states to probabilities
-        self.out = nn.Linear(hid_size, num_items)
+        self.out = nn.Linear(hid_size, num_skills)
 
         # Sigmoid for probability output
         self.sigmoid = nn.Sigmoid()
 
-    def forward(self, inputs, lengths):
+    def forward(self, skills, other, lengths):
         """
         Forward pass for the DKT model.
 
@@ -36,12 +37,13 @@ class DKT(nn.Module):
             Tensor: Output probabilities of shape (batch_size, seq_len, num_items).
         """
         # Embed the input sequence
-        indices = inputs[:, :, 0] * 2 - inputs[:, :, 1] # Adjust for padding index 0
+        embedded = self.embedding(skills)
 
-        embedded = self.embedding(indices)
+        concatenated = torch.cat((embedded, other), dim=-1)  # (batch_size, seq_length, embed_dim+other_dim)
+
 
         # Pack the padded sequence for the RNN
-        packed_embedded = pack_padded_sequence(embedded, lengths, batch_first=True, enforce_sorted=False)
+        packed_embedded = pack_padded_sequence(concatenated, lengths, batch_first=True, enforce_sorted=False)
 
         # RNN processing
         packed_output, _ = self.rnn(packed_embedded)

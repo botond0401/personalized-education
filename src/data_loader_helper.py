@@ -6,14 +6,16 @@ from torch.nn.utils.rnn import pad_sequence
 class SequenceDataset(Dataset):
     def __init__(self, user_dict):
 
-      self.user_ids = list(user_dict.keys())
-      self.sequences = list(user_dict.values().tolist())
+      # sorting in order to make apdding more efficient
+      self.user_ids = sorted(user_dict.keys(), key=lambda x: len(user_dict[x]))
+      self.sequences = [user_dict[user_id] for user_id in self.user_ids]
 
     def __getitem__(self, indices):
       sequence = self.sequences[indices]
       skill_one_hot_vectors = torch.tensor([item[0] for item in sequence[:-1]], dtype=torch.float32)
       if len(sequence[0]) == 2:
         additional_features = torch.tensor([item[1] for item in sequence[:-1]], dtype=torch.float32)
+        additional_features = additional_features.unsqueeze(-1)
       else:
          additional_features = torch.tensor([list(item[1]) + [item[2]] for item in sequence[:-1]], dtype=torch.float32)
       labels = torch.tensor([list(item[0]) + [item[-1]] for item in sequence[1:]], dtype=torch.float32)
