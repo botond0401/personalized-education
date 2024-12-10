@@ -74,11 +74,11 @@ def clean_assistments_data(
 
     # Type conversions
     df_data_full['skill_id'] = pd.to_numeric(df_data_full['skill_id'], errors='coerce').astype('Int64')
-    columns_to_int = ['correct', 'ms_first_response', 'bottom_hint']
+    columns_to_int = ['user_id', 'correct', 'skill_id', 'problem_id', 'ms_first_response', 'bottom_hint']
     df_data_full[columns_to_int] = df_data_full[columns_to_int].astype(int)
 
     # Convert specific columns to string
-    columns_to_str = ['user_id', 'skill_id', 'skill_name', 'problem_id', 'timestamp']
+    columns_to_str = ['skill_name', 'timestamp']  # Replace with your column names
     df_data_full[columns_to_str] = df_data_full[columns_to_str].astype(str)
 
     # Sort data by user and timestamp
