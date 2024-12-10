@@ -118,19 +118,36 @@ class KTDataset():
         self.BKT_datadict = dict(skill_dict)
 
 
-    def create_DKT_datadict(self):
+    def create_DKT_datadict(self, additional_columns=None):
+        """
+        Create a DKT dataset with one-hot vectors and additional columns if specified.
+        
+        Args:
+            additional_columns (list, optional): List of column names to include in the tuples, 
+                                                e.g., ['bottom_hint', 'ms_first_response']. Defaults to None.
+        """
+        # Dictionary to hold the data for each user
+        dict_skills = defaultdict(list)
 
-    
-    
+        # Iterate over each user group
+        for user_id, user_group in self.df_answers.groupby('user_id'):
+            # Create a list of tuples for each user's answers
+            answer_list = []
+            for _, row in user_group.iterrows():
+                one_hot_vector = row.iloc[-self.num_skills:].values  # Extract the one-hot vector as an array
+                
+                # Collect additional column values as a list
+                additional_info = row[additional_columns].values if additional_columns else []
+                
+                is_correct = row['correct']  # Extract if the answer was correct
 
+                # Append the tuple (one-hot vector, additional info, correct flag)
+                if additional_columns:
+                    answer_list.append((one_hot_vector, additional_info, is_correct))
+                else:
+                    answer_list.append((one_hot_vector, is_correct))
 
+            # Store the answer list in the dictionary under the user ID
+            dict_skills[user_id] = answer_list
 
-
-
-
-
-
-
-
-
-
+        self.DKT_datadict = dict(dict_skills)

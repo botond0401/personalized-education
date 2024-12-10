@@ -7,7 +7,7 @@ from sklearn.model_selection import KFold
 from .dkt_train import train_dkt
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-from src.answer_set import AnswerSet
+from src.data_loader_helper import AnswerSet
 
 
 def k_fold_cv_dkt(
