@@ -36,6 +36,7 @@ class KTDataset():
         self.BKT_datadict = None
         self.DKT_datadict = None
 
+
         if renumber_skill_ids:
             # Map original skill IDs to a continuous range starting from 1
             unique_skill_ids = sorted(df_skill_names['skill_id'].astype(int).unique())
@@ -115,6 +116,11 @@ class KTDataset():
 
         # Convert defaultdict to a regular dictionary and return
         self.BKT_datadict = dict(skill_dict)
+
+
+    def create_DKT_datadict(self):
+
+    
     
 
 
