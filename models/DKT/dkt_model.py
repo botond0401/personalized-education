@@ -4,14 +4,27 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 # Define the DKT model
 class DKT(nn.Module):
-    def __init__(self, num_skills, num_other, embed_dim, hid_size, num_hid_layers, drop_prob):
+    def __init__(self, num_skills, num_other, embed_dim, hid_size, num_hid_layers, drop_prob, special_embed=None):
         super(DKT, self).__init__()
 
-        # Custom embedding layer
-        self.embedding = nn.Sequential(
-            nn.Linear(num_skills, embed_dim),
-            nn.Tanh()
-            )
+        if special_embed is None:
+            self.embedding = nn.Linear(num_skills, embed_dim)
+            
+        elif special_embed == 'relu':
+            # Custom embedding layer
+            self.embedding = nn.Sequential(
+                nn.Linear(num_skills, embed_dim),
+                nn.ReLU()
+                )
+
+        elif special_embed == 'tanh':
+            # Custom embedding layer
+            self.embedding = nn.Sequential(
+                nn.Linear(num_skills, embed_dim),
+                nn.Tanh()
+                )
+        else:
+            raise ValueError(f"Parameter special_embed is invalid: {special_embed}")
 
         # RNN layer
         self.rnn = nn.LSTM(embed_dim + num_other, hid_size, num_hid_layers, batch_first=True)
