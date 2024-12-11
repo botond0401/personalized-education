@@ -84,7 +84,7 @@ def evaluate_auc(model, test_loader, device):
             predictions = model(skill_sequences, other_sequences, lengths)  # Shape (batch_size, seq_len, num_items)
 
             # Calculate AUC for the current batch
-            auc = calculate_auc(predictions, answers)
+            auc = calculate_auc(predictions, answers, lengths)
             auc_scores.append(auc)
 
     # Calculate the average AUC over all batches

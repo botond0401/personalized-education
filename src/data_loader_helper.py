@@ -1,6 +1,7 @@
 import torch
 from torch.utils.data import Dataset
 from torch.nn.utils.rnn import pad_sequence
+import numpy as np
 
 
 class SequenceDataset(Dataset):
@@ -12,14 +13,18 @@ class SequenceDataset(Dataset):
 
     def __getitem__(self, indices):
       sequence = self.sequences[indices]
-      skill_one_hot_vectors = torch.tensor([item[0] for item in sequence[:-1]], dtype=torch.float32)
+      skill_one_hot_vectors = torch.tensor(np.array([item[0] for item in sequence[:-1]]), dtype=torch.float32)
       if len(sequence[0]) == 2:
-        additional_features = torch.tensor([item[1] for item in sequence[:-1]], dtype=torch.float32)
-        additional_features = additional_features.unsqueeze(-1)
+          # Convert the list comprehension to a numpy array first, then to a tensor
+          additional_features = torch.tensor(np.array([item[1] for item in sequence[:-1]]), dtype=torch.float32)
+          additional_features = additional_features.unsqueeze(-1)  # Add the extra dimension
       else:
-         additional_features = torch.tensor([list(item[1]) + [item[2]] for item in sequence[:-1]], dtype=torch.float32)
-      labels = torch.tensor([list(item[0]) + [item[-1]] for item in sequence[1:]], dtype=torch.float32)
+          # Convert the list comprehension to a numpy array first, then to a tensor
+          additional_features = torch.tensor(np.array([list(item[1]) + [item[2]] for item in sequence[:-1]]), dtype=torch.float32)
 
+      # Optimize labels creation
+      labels = torch.tensor(np.array([list(item[0]) + [item[-1]] for item in sequence[1:]]), dtype=torch.float32)
+      
       return skill_one_hot_vectors, additional_features, labels
 
     def __len__(self):

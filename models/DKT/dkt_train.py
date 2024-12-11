@@ -45,7 +45,7 @@ def process(model, loader, device, optim=None):
           # Forward pass
           outputs = model(skill_sequences, other_sequences, lengths)
           loss = calculate_DKT_loss(outputs, labels)
-          auc = calculate_auc(outputs, labels)
+          auc = calculate_auc(outputs, labels, lengths)
 
           if optim is not None:  # Only during training
               optim.zero_grad()  # Reset gradients
