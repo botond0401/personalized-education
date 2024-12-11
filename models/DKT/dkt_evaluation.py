@@ -73,13 +73,15 @@ def evaluate_auc(model, test_loader, device):
     auc_scores = []
 
     with torch.no_grad():  # Disable gradient computation for evaluation
-        for inputs, answers, lengths in test_loader:
+        for skill_sequences, other_sequences, answers, lengths in test_loader:
             # Move inputs and answers to the correct device (GPU/CPU)
-            inputs, answers = inputs.to(device), answers.to(device)
+            skill_sequences = skill_sequences.to(device)
+            other_sequences = other_sequences.to(device)
+            answers = answers.to(device)
             lengths = lengths.to('cpu')
 
             # Forward pass through the model
-            predictions = model(inputs, lengths)  # Shape (batch_size, seq_len, num_items)
+            predictions = model(skill_sequences, other_sequences, lengths)  # Shape (batch_size, seq_len, num_items)
 
             # Calculate AUC for the current batch
             auc = calculate_auc(predictions, answers)

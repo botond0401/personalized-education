@@ -28,14 +28,16 @@ class KTDataset():
                  df_skill_names,
                  renumber_skill_ids=True,
                  prepare_BKT=False,
-                 prepare_DKT=False):
+                 prepare_DKT=False,
+                 additional_columns=None):
         
         self.df_answers = df_answers
         self.df_skill_names = df_skill_names
         self.num_skills = len(df_skill_names)
         self.BKT_datadict = None
         self.DKT_datadict = None
-
+        self.additional_columns = additional_columns
+        self.num_other = 1 + (len(additional_columns) if additional_columns is not None else 0)
 
         if renumber_skill_ids:
             # Map original skill IDs to a continuous range starting from 1
@@ -51,7 +53,6 @@ class KTDataset():
 
         if prepare_DKT:
             self.create_DKT_datadict()
-
 
 
     def return_ordered_ids(self, ids: Union[int, str, List[int], List[str]]) -> Union[int, List[int]]:
@@ -118,14 +119,12 @@ class KTDataset():
         self.BKT_datadict = dict(skill_dict)
 
 
-    def create_DKT_datadict(self, additional_columns=None):
+    def create_DKT_datadict(self):
         """
         Create a DKT dataset with one-hot vectors and additional columns if specified.
-        
-        Args:
-            additional_columns (list, optional): List of column names to include in the tuples, 
-                                                e.g., ['bottom_hint', 'ms_first_response']. Defaults to None.
         """
+        add_col = self.additional_columns
+
         # Dictionary to hold the data for each user
         dict_skills = defaultdict(list)
 
@@ -137,12 +136,12 @@ class KTDataset():
                 one_hot_vector = row.iloc[-self.num_skills:].values  # Extract the one-hot vector as an array
                 
                 # Collect additional column values as a list
-                additional_info = row[additional_columns].values if additional_columns else []
+                additional_info = row[add_col].values if add_col else []
                 
                 is_correct = row['correct']  # Extract if the answer was correct
 
                 # Append the tuple (one-hot vector, additional info, correct flag)
-                if additional_columns:
+                if add_col:
                     answer_list.append((one_hot_vector, additional_info, is_correct))
                 else:
                     answer_list.append((one_hot_vector, is_correct))

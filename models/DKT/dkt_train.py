@@ -32,17 +32,18 @@ def process(model, loader, device, optim=None):
     with torch.no_grad() if optim is None else torch.enable_grad():
 
       # Iterate through the DataLoader with tqdm for progress tracking
-      for _, (sequences, labels, lengths) in tqdm(enumerate(loader),
+      for _, (skill_sequences, other_sequences, labels, lengths) in tqdm(enumerate(loader),
                                                           file=sys.stdout,
                                                           unit=' batches',
                                                           desc=desc):
           # Move sequences and labels to the appropriate device
-          sequences = sequences.to(device)
+          skill_sequences = skill_sequences.to(device)
+          other_sequences = other_sequences.to(device)
           labels = labels.to(device)
           lengths = lengths.to('cpu')
 
           # Forward pass
-          outputs = model(sequences, lengths)
+          outputs = model(skill_sequences, other_sequences, lengths)
           loss = calculate_DKT_loss(outputs, labels)
           auc = calculate_auc(outputs, labels)
 
