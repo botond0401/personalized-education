@@ -10,7 +10,7 @@ class DKT(nn.Module):
         # Custom embedding layer
         self.embedding = nn.Sequential(
             nn.Linear(num_skills, embed_dim),
-            nn.ReLU()  # or nn.LeakyReLU() for a small gradient when inactive
+            nn.Tanh()
             )
 
         # RNN layer
