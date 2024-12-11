@@ -23,7 +23,7 @@ def calculate_DKT_loss(predictions_all, answers_with_labels):
     # Compute binary cross-entropy loss between the normalized result and the correctness labels
     loss = F.binary_cross_entropy(result, labels)
 
-    return loss.item()
+    return loss
 
 
 def calculate_auc(predictions_all, answers_with_labels, lengths):

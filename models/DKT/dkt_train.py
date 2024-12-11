@@ -54,7 +54,7 @@ def process(model, loader, device, optim=None):
               torch.cuda.empty_cache()
 
           losses.append(loss.item())  # Accumulate loss
-          auc_scores.append(auc.item())  # Accumulate loss
+          auc_scores.append(auc)  # Accumulate loss
 
     return sum(losses), sum(auc_scores) / len(auc_scores)
 
