@@ -1,0 +1,12 @@
+{
+    "learning_rate": 0.001,
+    "models_params": {
+        "num_skills": 109,
+        "num_other": 1,
+        "embed_dim": 2,
+        "hid_size": 200,
+        "num_hid_layers": 2,
+        "drop_prob": 0.4,
+        "special_embed": "tanh"
+    }
+}
