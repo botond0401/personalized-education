@@ -31,7 +31,7 @@ def k_fold_cv_dkt(
         num_epochs (int): Number of epochs for training in each fold.
         device (torch.device): The device (e.g., 'cuda' or 'cpu') to run the training on.
         train_dict (Dict[int, Any]): Dictionary mapping keys to data for training.
-        batch_size (int, optional): Batch size for training and validation. Defaults to 32.
+        batch_size (int, optional): Batch size for training and validation. Defaults to 100.
         num_workers (int, optional): Number of subprocesses to use for data loading. Defaults to 2.
 
     Returns:
