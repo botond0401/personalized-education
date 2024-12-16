@@ -1,6 +1,6 @@
 {
     "learning_rate": 0.001,
-    "models_params": {
+    "model_params": {
         "num_skills": 109,
         "num_other": 1,
         "embed_dim": 3,
