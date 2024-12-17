@@ -1,9 +1,62 @@
 from typing import Dict, Any, Optional, Tuple
 import torch
 from torch.utils.data import DataLoader
-from .dkt_evaluation import calculate_loss
 from .dkt_model import DKT
-from .dkt_process import process
+from tqdm import tqdm
+import sys
+from .dkt_evaluation import calculate_auc, calculate_DKT_loss
+
+
+def process(model, loader, device, optim=None):
+    """
+    Process the data in the given loader for either training or evaluation.
+
+    Args:
+        model: The model to be used for predictions.
+        loader: The DataLoader providing the data.
+        optim: The optimizer (if training).
+
+    Returns:
+    """
+    # Set model to training or evaluation mode
+    if optim is not None:
+        model.train()
+        desc = 'Training'
+    else:
+        model.eval()
+        desc = 'Evaluation'
+
+    losses = []
+    auc_scores = []
+
+    with torch.no_grad() if optim is None else torch.enable_grad():
+
+      # Iterate through the DataLoader with tqdm for progress tracking
+      for _, (skill_sequences, other_sequences, labels, lengths) in tqdm(enumerate(loader),
+                                                          file=sys.stdout,
+                                                          unit=' batches',
+                                                          desc=desc):
+          # Move sequences and labels to the appropriate device
+          skill_sequences = skill_sequences.to(device)
+          other_sequences = other_sequences.to(device)
+          labels = labels.to(device)
+          lengths = lengths.to('cpu')
+
+          # Forward pass
+          outputs = model(skill_sequences, other_sequences, lengths)
+          loss = calculate_DKT_loss(outputs, labels)
+          auc = calculate_auc(outputs, labels, lengths)
+
+          if optim is not None:  # Only during training
+              optim.zero_grad()  # Reset gradients
+              loss.backward()  # Backpropagation
+              optim.step()  # Update parameters
+              torch.cuda.empty_cache()
+
+          losses.append(loss.item())  # Accumulate loss
+          auc_scores.append(auc)  # Accumulate loss
+
+    return sum(losses), sum(auc_scores) / len(auc_scores)
 
 
 def train_dkt(
@@ -44,15 +97,15 @@ def train_dkt(
         print(f"\nEpoch {epoch}\n")
 
         # Training phase: Update the model using the training data
-        process(model, train_loader, calculate_loss, device, optimizer)
+        process(model, train_loader, device, optimizer)
 
     # Validation phase: Evaluate the model on the validation dataset (if provided)
     if val_loader is not None:
-        _, val_auc = process(model, val_loader, calculate_loss, device)
+        _, val_auc = process(model, val_loader, device)
     else:
         # Use training data for evaluation if no validation DataLoader is provided
         print("No validation loader provided. Using training data for evaluation.")
-        _, val_auc = process(model, train_loader, calculate_loss, device)
+        _, val_auc = process(model, train_loader, device)
 
     # Return the trained model and the best validation AUC achieved
     return model, val_auc

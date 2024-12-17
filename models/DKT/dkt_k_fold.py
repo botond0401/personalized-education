@@ -1,4 +1,4 @@
-from typing import Dict, Any, Callable
+from typing import Dict, Any
 import sys
 import os
 import torch
@@ -7,7 +7,8 @@ from sklearn.model_selection import KFold
 from .dkt_train import train_dkt
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-from src.answer_set import AnswerSet
+
+from src.data_loader_helper import SequenceDataset, collate_batch
 
 
 def k_fold_cv_dkt(
@@ -18,7 +19,6 @@ def k_fold_cv_dkt(
     device: torch.device,
     train_dict: Dict[int, Any],
     batch_size: int = 100,
-    collate_batch: Callable = None,
     num_workers: int = 2
 ) -> float:
     """
@@ -31,8 +31,7 @@ def k_fold_cv_dkt(
         num_epochs (int): Number of epochs for training in each fold.
         device (torch.device): The device (e.g., 'cuda' or 'cpu') to run the training on.
         train_dict (Dict[int, Any]): Dictionary mapping keys to data for training.
-        collate_batch (callable, optional): Function to merge a list of samples into a batch. Defaults to None.
-        batch_size (int, optional): Batch size for training and validation. Defaults to 32.
+        batch_size (int, optional): Batch size for training and validation. Defaults to 100.
         num_workers (int, optional): Number of subprocesses to use for data loading. Defaults to 2.
 
     Returns:
@@ -59,10 +58,10 @@ def k_fold_cv_dkt(
         fold_val_dict = {key: train_dict[key] for key in fold_val_keys}
         fold_val_dict = dict(sorted(fold_val_dict.items(), key=lambda item: len(item[1])))
 
-        fold_train_dataset = AnswerSet(fold_train_dict)
+        fold_train_dataset = SequenceDataset(fold_train_dict)
         fold_train_loader = DataLoader(fold_train_dataset, batch_size=batch_size, collate_fn=collate_batch, pin_memory=True, num_workers=num_workers)
 
-        fold_val_dataset = AnswerSet(fold_val_dict)
+        fold_val_dataset = SequenceDataset(fold_val_dict)
         fold_val_loader = DataLoader(fold_val_dataset, batch_size=batch_size, collate_fn=collate_batch, pin_memory=True, num_workers=num_workers)
 
         _, val_auc = train_dkt(
