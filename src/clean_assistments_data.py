@@ -128,6 +128,13 @@ def clean_assistments_data(
     df_answers_valid_skills = df_answers_valid_skills[[col for col in df_answers_valid_skills.columns if col not in skills_to_remove]]
     df_answers_valid_skills = df_answers_valid_skills[df_answers_valid_skills.iloc[:, num_non_skill_columns:].sum(axis=1) != 0]
 
+    # Add feature ease
+    correct_ratios = df_answers_valid_skills.groupby('problem_id')['correct'].mean()
+    df_answers_valid_skills['ease'] = df_answers_valid_skills['problem_id'].map(correct_ratios)
+    cols = list(df_answers_valid_skills.columns)
+    cols.insert(5, cols.pop(cols.index('ease')))  # Adjust '1' to place it where you want
+    df_answers_valid_skills = df_answers_valid_skills[cols]
+
     valid_skill_ids = df_answers_valid_skills.columns[num_non_skill_columns:]
     df_valid_skill_names = df_skill_problem_mapping.loc[df_skill_problem_mapping['skill_id'].isin(valid_skill_ids), ['skill_id', 'skill_name']].drop_duplicates()
 
