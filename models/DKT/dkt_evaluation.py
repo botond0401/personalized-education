@@ -45,8 +45,8 @@ def calculate_auc(predictions_all, answers_with_labels, lengths):
     # Move tensors to CPU and convert to NumPy arrays for AUC calculation
     predictions = predictions.cpu().detach().numpy()  # Move to CPU first
     labels = labels.cpu().detach().numpy()  # Same for labels
-    lengths = lengths.cpu().detach().numpy()  
-    
+    lengths = lengths.cpu().detach().numpy()
+
     # Create mask to ignore padded values based on sequence lengths
     mask = np.arange(predictions.shape[1])[None, :] < lengths[:, None]  # Shape: (batch_size, seq_len)
 

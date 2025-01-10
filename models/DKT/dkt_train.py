@@ -13,10 +13,13 @@ def process(model, loader, device, optim=None):
 
     Args:
         model: The model to be used for predictions.
-        loader: The DataLoader providing the data.
-        optim: The optimizer (if training).
+        loader: DataLoader providing batches of input data and labels.
+        device: The device (CPU or GPU) to run the computation on.
+        optim: Optimizer for training (if provided). If None, the function performs evaluation.
 
     Returns:
+        total_loss (float): The sum of all batch losses.
+        average_auc (float): The average AUC score across all batches.
     """
     # Set model to training or evaluation mode
     if optim is not None:
@@ -26,16 +29,20 @@ def process(model, loader, device, optim=None):
         model.eval()
         desc = 'Evaluation'
 
-    losses = []
-    auc_scores = []
+    total_loss = 0
+    total_auc = 0
+    total_samples = 0
+
+
+    model = model.to(device)
 
     with torch.no_grad() if optim is None else torch.enable_grad():
 
       # Iterate through the DataLoader with tqdm for progress tracking
-      for _, (skill_sequences, other_sequences, labels, lengths) in tqdm(enumerate(loader),
-                                                          file=sys.stdout,
-                                                          unit=' batches',
-                                                          desc=desc):
+      for skill_sequences, other_sequences, labels, lengths in tqdm(loader,
+                                                                    file=sys.stdout,
+                                                                    unit=' batches',
+                                                                    desc=desc):
           # Move sequences and labels to the appropriate device
           skill_sequences = skill_sequences.to(device)
           other_sequences = other_sequences.to(device)
@@ -53,10 +60,14 @@ def process(model, loader, device, optim=None):
               optim.step()  # Update parameters
               torch.cuda.empty_cache()
 
-          losses.append(loss.item())  # Accumulate loss
-          auc_scores.append(auc)  # Accumulate loss
+          batch_size = skill_sequences.size(0)  # Get the number of samples in the current batch
 
-    return sum(losses), sum(auc_scores) / len(auc_scores)
+          # Weight the loss by the batch size
+          total_loss += loss.item() * batch_size  # Accumulate weighted loss
+          total_auc += auc * batch_size  # Accumulate weighted AUC
+          total_samples += batch_size 
+
+    return total_loss / total_samples, total_auc / total_samples
 
 
 def train_dkt(
@@ -87,10 +98,12 @@ def train_dkt(
           lead to overestimation of the performance.
     """
     # Initialize the model and move it to the specified device
-    model = DKT(**model_params).to(device)
+    model = DKT(**model_params)
 
     # Initialize the optimizer with the model's parameters and specified learning rate
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    list_val_loss = []
+    list_val_auc = []
 
     # Training loop for the specified number of epochs
     for epoch in range(1, num_epochs + 1):
@@ -99,13 +112,16 @@ def train_dkt(
         # Training phase: Update the model using the training data
         process(model, train_loader, device, optimizer)
 
-    # Validation phase: Evaluate the model on the validation dataset (if provided)
-    if val_loader is not None:
-        _, val_auc = process(model, val_loader, device)
-    else:
-        # Use training data for evaluation if no validation DataLoader is provided
-        print("No validation loader provided. Using training data for evaluation.")
-        _, val_auc = process(model, train_loader, device)
+        # Validation phase: Evaluate the model on the validation dataset (if provided)
+        if val_loader is not None:
+            val_loss, val_auc = process(model, val_loader, device)
+        else:
+            # Use training data for evaluation if no validation DataLoader is provided
+            print("No validation loader provided. Using training data for evaluation.")
+            val_loss, val_auc = process(model, train_loader, device)
+        list_val_loss.append(val_loss)
+        list_val_auc.append(val_auc)
+        print(f'For the {epoch}. epoch AUC is {val_auc}, loss is {val_loss}.')
 
     # Return the trained model and the best validation AUC achieved
-    return model, val_auc
+    return model, list_val_loss, list_val_auc

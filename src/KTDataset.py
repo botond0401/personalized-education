@@ -30,7 +30,7 @@ class KTDataset():
                  prepare_BKT=False,
                  prepare_DKT=False,
                  additional_columns=None):
-        
+
         self.df_answers = df_answers
         self.df_skill_names = df_skill_names
         self.num_skills = len(df_skill_names)
@@ -72,7 +72,7 @@ class KTDataset():
             return [self.skill_id_mapping[int(id)] for id in ids]
         else:
             raise TypeError("IDs must be an int, str, or a list of int/str.")
-        
+
 
     def return_original_ids(self, ids: Union[int, str, List[int], List[str]]) -> Union[int, List[int]]:
         """
@@ -91,13 +91,13 @@ class KTDataset():
             return [self.original_id_mapping.get(int(id), None) for id in ids]  # Convert each to integer for lookup
         else:
             raise TypeError("IDs must be an int, str, or a list of int/str.")
-        
+
 
     def create_BKT_datadict(self):
         """
         Converts Assistments data into a Bayesian Knowledge Tracing (BKT) dictionary.
 
-        Groups data by skill ID and user ID, creating a structure where each skill maps 
+        Groups data by skill ID and user ID, creating a structure where each skill maps
         to lists of user answer sequences.
         """
 
@@ -134,10 +134,10 @@ class KTDataset():
             answer_list = []
             for _, row in user_group.iterrows():
                 one_hot_vector = row.iloc[-self.num_skills:].values  # Extract the one-hot vector as an array
-                
+
                 # Collect additional column values as a list
                 additional_info = row[add_col].values if add_col else []
-                
+
                 is_correct = row['correct']  # Extract if the answer was correct
 
                 # Append the tuple (one-hot vector, additional info, correct flag)

@@ -2,14 +2,14 @@ import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-# Define the DKT model
+
 class DKT(nn.Module):
     def __init__(self, num_skills, num_other, embed_dim, hid_size, num_hid_layers, drop_prob, special_embed=None):
         super(DKT, self).__init__()
 
         if special_embed is None:
             self.embedding = nn.Linear(num_skills, embed_dim)
-            
+
         elif special_embed == 'relu':
             # Custom embedding layer
             self.embedding = nn.Sequential(
@@ -54,7 +54,6 @@ class DKT(nn.Module):
 
         concatenated = torch.cat((embedded, other), dim=-1)  # (batch_size, seq_length, embed_dim+other_dim)
 
-
         # Pack the padded sequence for the RNN
         packed_embedded = pack_padded_sequence(concatenated, lengths, batch_first=True, enforce_sorted=False)
 
@@ -80,4 +79,3 @@ class DKT(nn.Module):
         masked_output = probabilities * mask.float()  # Zero out the padded positions
 
         return masked_output
-    
