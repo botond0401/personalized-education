@@ -24,14 +24,13 @@ class SequenceDataset(Dataset):
 
       # Optimize labels creation
       labels = torch.tensor(np.array([list(item[0]) + [item[-1]] for item in sequence[1:]]), dtype=torch.float32)
-      
+
       return skill_one_hot_vectors, additional_features, labels
 
     def __len__(self):
         return len(self.sequences)
 
 
-# Define collate function
 def collate_batch(batch):
     # Unpacking batches into sequences and labels
     skill_one_hot_vectors, additional_features, labels = zip(*batch)  # This will now work as expected
