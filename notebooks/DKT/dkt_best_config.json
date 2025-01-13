@@ -5,8 +5,8 @@
         "num_other": 1,
         "embed_dim": 3,
         "hid_size": 200,
-        "num_hid_layers": 2,
-        "drop_prob": 0.4,
+        "num_hid_layers": 3,
+        "drop_prob": 0.5,
         "special_embed": "tanh"
     }
 }
