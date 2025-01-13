@@ -1,4 +1,5 @@
-Lib/
+# Ignore all .csv files
+*.csv
 
-# Ignore virtual environment
+# Ignore the personalized_education virtual environment directory
 personalized_education/
