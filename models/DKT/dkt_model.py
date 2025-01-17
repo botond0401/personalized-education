@@ -58,10 +58,4 @@ class DKT(nn.Module):
         # Sigmoid to convert logits to probabilities
         probabilities = self.sigmoid(logits)
 
-        # Mask padded positions
-        mask = torch.arange(probabilities.size(1)).expand(len(lengths), probabilities.size(1)) < lengths.unsqueeze(1)
-        mask = mask.unsqueeze(-1).expand_as(probabilities)  # Shape: (batch_size, seq_len, num_items)
-        mask = mask.to(probabilities.device)
-        masked_output = probabilities * mask.float()  # Zero out the padded positions
-
-        return masked_output
+        return probabilities
