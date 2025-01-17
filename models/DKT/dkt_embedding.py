@@ -14,7 +14,10 @@ class CustomEmbedding(nn.Module):
         embedded = self.linear(x)
 
         # Calculate the number of 1s (sum of the input binary vector)
-        num_ones = torch.sum(x, dim=1, keepdim=True)
+        num_ones = torch.sum(x, dim=-1, keepdim=True)
+
+        # Broadcast num_ones to the shape of embedded: (batch_size, seq_len, embed_dim)
+        num_ones = num_ones.expand(-1, -1, embedded.size(-1))
 
         # Avoid division by zero
         num_ones = torch.max(num_ones, torch.ones_like(num_ones))
