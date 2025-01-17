@@ -102,6 +102,8 @@ def train_dkt(
 
     # Initialize the optimizer with the model's parameters and specified learning rate
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    list_train_loss = []
+    list_train_auc = []
     list_val_loss = []
     list_val_auc = []
 
@@ -114,14 +116,19 @@ def train_dkt(
 
         # Validation phase: Evaluate the model on the validation dataset (if provided)
         if val_loader is not None:
+            train_loss, train_auc = process(model, train_loader, device)
             val_loss, val_auc = process(model, val_loader, device)
+            list_val_loss.append(val_loss)
+            list_val_auc.append(val_auc)
+            print(f'For the {epoch}. epoch test AUC is {val_auc}, test loss is {val_loss}.')
         else:
             # Use training data for evaluation if no validation DataLoader is provided
-            print("No validation loader provided. Using training data for evaluation.")
-            val_loss, val_auc = process(model, train_loader, device)
-        list_val_loss.append(val_loss)
-        list_val_auc.append(val_auc)
-        print(f'For the {epoch}. epoch AUC is {val_auc}, loss is {val_loss}.')
+            print("No validation loader provided. Only training data for evaluation.")
+            train_loss, train_auc = process(model, train_loader, device)
+        list_train_loss.append(train_loss)
+        list_train_auc.append(train_auc)
+
+        print(f'For the {epoch}. epoch train AUC is {train_auc}, train loss is {train_loss}.')
 
     # Return the trained model and the best validation AUC achieved
-    return model, list_val_loss, list_val_auc
+    return model, list_train_loss, list_train_auc, list_val_loss, list_val_auc

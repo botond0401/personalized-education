@@ -64,7 +64,7 @@ def k_fold_cv_dkt(
         fold_val_dataset = SequenceDataset(fold_val_dict)
         fold_val_loader = DataLoader(fold_val_dataset, batch_size=batch_size, collate_fn=collate_batch, pin_memory=True, num_workers=num_workers)
 
-        _, list_val_loss, list_val_auc = train_dkt(
+        *_, list_val_auc = train_dkt(
             model_params, lr, num_epochs, device,
             fold_train_loader, fold_val_loader
             )
