@@ -40,7 +40,6 @@ def calculate_DKT_loss(predictions_all, answers_with_labels, lengths):
     return masked_loss
 
 
-
 def calculate_auc(predictions_all, answers_with_labels, lengths):
     """
     Calculate the AUC (Area Under the Curve) for a sequence of predictions and labels, considering valid (non-padded) data.
@@ -65,17 +64,13 @@ def calculate_auc(predictions_all, answers_with_labels, lengths):
     # Create mask to ignore padded values based on sequence lengths
     mask = np.arange(predictions.shape[1])[None, :] < lengths[:, None]  # Shape: (batch_size, seq_len)
 
-    # Apply mask to filter valid predictions and labels
-    masked_predictions = np.where(mask, predictions, np.nan)  # Set padded positions to np.nan
-    masked_labels = np.where(mask, labels, np.nan)  # Set padded positions to np.nan
-
-    # Flatten the arrays to compute AUC only on non-padded data
-    flattened_predictions = masked_predictions[~np.isnan(masked_predictions)]
-    flattened_labels = masked_labels[~np.isnan(masked_labels)]
+    # Apply the mask to filter valid predictions and labels without using np.nan
+    valid_predictions = predictions[mask]
+    valid_labels = labels[mask]
 
     # Calculate AUC if valid data is present
-    if flattened_predictions.size > 0 and flattened_labels.size > 0:
-        auc = roc_auc_score(flattened_labels, flattened_predictions)
+    if valid_predictions.size > 0 and valid_labels.size > 0:
+        auc = roc_auc_score(valid_labels, valid_predictions)
     else:
         auc = float('nan')  # Return NaN if no valid data for AUC calculation
 
