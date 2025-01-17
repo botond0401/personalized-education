@@ -2,16 +2,15 @@ import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
+from .dkt_embedding import CustomEmbedding
+
 
 class DKT(nn.Module):
     def __init__(self, num_skills, num_other, embed_dim, hid_size, num_hid_layers, drop_prob):
         super(DKT, self).__init__()
 
         # Custom embedding layer
-        self.embedding = nn.Sequential(
-            nn.Linear(num_skills, embed_dim),
-            nn.Tanh()
-            )
+        self.embedding = CustomEmbedding(num_skills, embed_dim)
 
         # RNN layer
         self.rnn = nn.LSTM(embed_dim + num_other, hid_size, num_hid_layers, batch_first=True)
