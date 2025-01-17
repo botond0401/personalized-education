@@ -4,26 +4,41 @@ from sklearn.metrics import roc_auc_score
 import numpy as np
 
 
-def calculate_DKT_loss(predictions_all, answers_with_labels):
+def calculate_DKT_loss(predictions_all, answers_with_labels, lengths):
     """
     Calculate the binary cross-entropy loss for a sequence of predictions and labels,
-    taking into account the problem ID (task index) for each student.
+    while ignoring padded positions based on the given lengths.
 
     Args:
         predictions_all (Tensor): The model's predicted values with shape (batch_size, seq_len, num_skills).
         answers_with_labels (Tensor): Ground truth tensor with shape (batch_size, seq_len, num_skills + 1),
-                                     where the last dimension contains problem IDs and correctness labels.
-                                     The last element of each entry indicates whether the response was correct (1) or not (0).
+                                      where the last dimension contains problem IDs and correctness labels.
+                                      The last element of each entry indicates whether the response was correct (1) or not (0).
+        lengths (Tensor): A tensor of shape (batch_size,) indicating the lengths of each sequence in the batch.
 
     Returns:
-        loss (float): The total binary cross-entropy loss for the batch.
+        loss (Tensor): The total binary cross-entropy loss for the batch, ignoring padded positions.
     """
-    # Extract problem_ids and labels from the inputs
+    # Extract the result (predictions) and labels from the inputs
     result, labels = _transform_to_correct_predictions(predictions_all, answers_with_labels)
-    # Compute binary cross-entropy loss between the normalized result and the correctness labels
-    loss = F.binary_cross_entropy(result, labels)
 
-    return loss
+    # Create a mask based on the sequence lengths, where 1 represents a valid position and 0 represents padding
+    batch_size, seq_len = result.size()  # Assuming result is (batch_size, seq_len)
+    mask = torch.arange(seq_len).expand(batch_size, seq_len) < lengths.unsqueeze(1)
+    mask = mask.float()  # Convert to float for later multiplication
+
+    # Apply the mask to the result and labels to ignore padded positions
+    masked_result = result * mask
+    masked_labels = labels * mask
+
+    # Compute the binary cross-entropy loss for each sequence element
+    loss = F.binary_cross_entropy(masked_result, masked_labels, reduction='none')
+
+    # Average the loss over the non-padded positions
+    masked_loss = loss.sum() / mask.sum()  # Normalize by the number of valid (non-padded) positions
+
+    return masked_loss
+
 
 
 def calculate_auc(predictions_all, answers_with_labels, lengths):
