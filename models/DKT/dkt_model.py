@@ -4,7 +4,7 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 
 class DKT(nn.Module):
-    def __init__(self, num_skills, num_other, embed_dim, hid_size, num_hid_layers, drop_prob, special_embed=None):
+    def __init__(self, num_skills, num_other, embed_dim, hid_size, num_hid_layers, drop_prob):
         super(DKT, self).__init__()
 
         # Custom embedding layer
