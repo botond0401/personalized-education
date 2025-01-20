@@ -5,7 +5,7 @@ class CustomEmbedding(nn.Module):
     def __init__(self, num_skills, embed_dim):
         super(CustomEmbedding, self).__init__()
         # Linear layer for embedding
-        self.linear = nn.Linear(num_skills, embed_dim)
+        self.linear = nn.Linear(num_skills, embed_dim, bias=False)
         # Tanh activation
         self.tanh = nn.Tanh()
 
