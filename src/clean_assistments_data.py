@@ -22,6 +22,7 @@ Usage:
 import os
 
 import pandas as pd
+import numpy as np
 
 def clean_assistments_data(
     input_file: str,
@@ -49,26 +50,30 @@ def clean_assistments_data(
         raise FileNotFoundError(f"Error: File '{input_file}' not found.") from e
 
     # Validate required columns
-    columns_to_keep = [
-        'order_id', 'user_id', 'correct', 'skill_id', 'skill_name', 
-        'problem_id', 'ms_first_response', 'bottom_hint', 'opportunity'
-    ]
+    columns_to_keep = ['order_id', 'user_id', 'correct', 'skill_id', 'skill_name', 'problem_id',
+                              'ms_first_response', 'bottom_hint', 'hint_total', 'hint_count', 'opportunity']
     if not all(col in df_data.columns for col in columns_to_keep):
         raise ValueError("Input file missing required columns.")
     df_data_filtered = df_data[columns_to_keep]
 
-    # Drop rows without skill_id and fill missing values
-    df_data_full = df_data_filtered.dropna(subset=['skill_id']).copy()
+    df_data_full = df_data_filtered.dropna(subset='skill_id')
+
+    df_data_full = df_data_full.copy()
+
     df_data_full['bottom_hint'] = df_data_full['bottom_hint'].fillna(0)
 
-    # Create a composite 'timestamp' column to order actions by users
-    df_data_full['opportunity_padded'] = df_data_full['opportunity'].apply(
-        lambda x: f"{int(x):04d}"
+    df_data_full['opportunity_padded'] = df_data_full['opportunity'].apply(lambda x: f"{int(x):04d}")
+
+    # Create the 'timestamp' column by concatenating 'order_id' and padded 'opportunity'
+    df_data_full['timestamp'] = df_data_full['order_id'].astype(str) + df_data_full['opportunity_padded']
+
+    df_data_full['hints_used'] = np.where(
+        df_data_full['hint_total'] == 0,  # Condition: hint_total is 0
+        0,                                # Value when true (set to 0)
+        df_data_full['hint_count'] / df_data_full['hint_total']  # Normal division otherwise
     )
-    df_data_full['timestamp'] = (
-        df_data_full['order_id'].astype(str) + df_data_full['opportunity_padded']
-    )
-    df_data_full.drop(columns=['opportunity', 'opportunity_padded', 'order_id'], inplace=True)
+
+    df_data_full.drop(columns=['opportunity', 'opportunity_padded', 'order_id', 'hint_total', 'hint_count'], inplace=True)
 
     # Type conversions
     df_data_full['skill_id'] = pd.to_numeric(df_data_full['skill_id'], errors='coerce').astype('Int64')
@@ -97,7 +102,8 @@ def clean_assistments_data(
     df_answers = df_answers.sort_values(by=['user_id', 'timestamp']).reset_index(drop=True)
 
     # Create a binary column for each skill_id
-    columns_to_keep = ["user_id", "timestamp", "problem_id", "ms_first_response", "bottom_hint", "correct"]
+    columns_to_keep = ["user_id", "timestamp", "problem_id", "ms_first_response", "hints_used", "bottom_hint", "correct"]
+
     df_answers_pivot = df_answers.pivot_table(
         index=columns_to_keep,
         columns="skill_id",
@@ -127,6 +133,25 @@ def clean_assistments_data(
     skills_to_remove = max_skill_counts[max_skill_counts < min_len_longest_seq].index
     df_answers_valid_skills = df_answers_valid_skills[[col for col in df_answers_valid_skills.columns if col not in skills_to_remove]]
     df_answers_valid_skills = df_answers_valid_skills[df_answers_valid_skills.iloc[:, num_non_skill_columns:].sum(axis=1) != 0]
+
+    # handling feature ms_first_response
+    # Calculate Q1 (25th percentile) and Q3 (75th percentile)
+    Q1 = df_answers_valid_skills['ms_first_response'].quantile(0.25)
+    Q3 = df_answers_valid_skills['ms_first_response'].quantile(0.75)
+
+    # Calculate the IQR
+    IQR = Q3 - Q1
+
+    # Calculate the lower and upper bounds using a multiplier of 3
+    upper_bound = Q3 + 3 * IQR
+
+    df_answers_valid_skills['ms_first_response'] = df_answers_valid_skills['ms_first_response'].clip(upper=upper_bound)
+
+    df_answers_valid_skills['ms_first_response'] = df_answers_valid_skills['ms_first_response'].clip(lower=0)
+
+    df_answers_valid_skills['ms_first_response'] = (
+    df_answers_valid_skills['ms_first_response'] / upper_bound
+    )
 
     # Add feature ease
     correct_ratios = df_answers_valid_skills.groupby('problem_id')['correct'].mean()
