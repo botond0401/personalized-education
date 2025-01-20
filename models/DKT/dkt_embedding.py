@@ -6,13 +6,11 @@ class CustomEmbedding(nn.Module):
         super(CustomEmbedding, self).__init__()
         # Linear layer for embedding
         self.linear = nn.Linear(num_skills, embed_dim, bias=False)
-        # Tanh activation
-        self.tanh = nn.Tanh()
 
     def forward(self, x):
         # Perform the linear transformation
         embedded = self.linear(x)
-
+        
         # Calculate the number of 1s (sum of the input binary vector)
         num_ones = torch.sum(x, dim=-1, keepdim=True)
 
@@ -26,4 +24,4 @@ class CustomEmbedding(nn.Module):
         embedded /= num_ones
 
         # Apply the Tanh activation
-        return self.tanh(embedded)
+        return embedded
