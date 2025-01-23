@@ -116,8 +116,8 @@ def _transform_to_correct_predictions(predictions_all, answers_with_labels):
     # Count the number of relevant skills (ones) for each step to use as a normalization factor
     num_ones = problem_ids.sum(dim=2)  # Shape: (batch_size, seq_len)
 
-    # Avoid division by zero by adding a small constant to the normalization factor
-    normalization_factor = num_ones + 1e-8  # Adding a small constant for numerical stability
+    # Avoid division by zero by aclipping at 1
+    normalization_factor = torch.clamp(num_ones, min=1)
 
     # Normalize the summed result by the number of ones (relevant skills)
     result = result_sum / normalization_factor  # Shape: (batch_size, seq_len)
