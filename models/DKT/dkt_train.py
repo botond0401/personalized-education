@@ -47,10 +47,12 @@ def process(model, loader, device, optim=None):
           skill_sequences = skill_sequences.to(device)
           other_sequences = other_sequences.to(device)
           labels = labels.to(device)
+
           lengths = lengths.to('cpu')
 
           # Forward pass
           outputs = model(skill_sequences, other_sequences, lengths)
+
           loss = calculate_DKT_loss(outputs, labels, lengths)
           auc = calculate_auc(outputs, labels, lengths)
 
@@ -65,7 +67,7 @@ def process(model, loader, device, optim=None):
           # Weight the loss by the batch size
           total_loss += loss.item() * batch_size  # Accumulate weighted loss
           total_auc += auc * batch_size  # Accumulate weighted AUC
-          total_samples += batch_size 
+          total_samples += batch_size
 
     return total_loss / total_samples, total_auc / total_samples
 
@@ -76,7 +78,8 @@ def train_dkt(
     num_epochs: int,
     device: torch.device,
     train_loader: DataLoader,
-    val_loader: Optional[DataLoader] = None
+    val_loader: Optional[DataLoader] = None,
+    patience = 3
 ) -> Tuple[torch.nn.Module, float]:
     """
     Trains a Deep Knowledge Tracing (DKT) model using the provided parameters.
@@ -107,11 +110,16 @@ def train_dkt(
     list_val_loss = []
     list_val_auc = []
 
+    # Initialize early stopping variables
+    best_val_auc = 0.0
+    epochs_without_improvement = 0
+
     # Training loop for the specified number of epochs
     for epoch in range(1, num_epochs + 1):
         print(f"\nEpoch {epoch}\n")
 
         # Training phase: Update the model using the training data
+        # Check initial weights and biases of each layer
         process(model, train_loader, device, optimizer)
 
         # Validation phase: Evaluate the model on the validation dataset (if provided)
@@ -122,13 +130,23 @@ def train_dkt(
             list_val_auc.append(val_auc)
             print(f'For the {epoch}. epoch test AUC is {val_auc}, test loss is {val_loss}.')
         else:
-            # Use training data for evaluation if no validation DataLoader is provided
             print("No validation loader provided. Only training data for evaluation.")
             train_loss, train_auc = process(model, train_loader, device)
         list_train_loss.append(train_loss)
         list_train_auc.append(train_auc)
 
         print(f'For the {epoch}. epoch train AUC is {train_auc}, train loss is {train_loss}.')
+
+        # Check for early stopping condition
+        if patience:
+          if val_auc > best_val_auc:
+              best_val_auc = val_auc
+              epochs_without_improvement = 0  # Reset the counter
+          else:
+              epochs_without_improvement += 1
+          if epochs_without_improvement >= patience:
+              print(f"Early stopping triggered after {epoch} epochs. No improvement in validation AUC for {patience} epochs.")
+              break
 
     # Return the trained model and the best validation AUC achieved
     return model, list_train_loss, list_train_auc, list_val_loss, list_val_auc
