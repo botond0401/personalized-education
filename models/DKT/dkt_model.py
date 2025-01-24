@@ -2,29 +2,22 @@ import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
+from .dkt_embedding import CustomEmbedding
+
 
 class DKT(nn.Module):
-    def __init__(self, num_skills, num_other, embed_dim, hid_size, num_hid_layers, drop_prob, special_embed=None):
+    def __init__(self, num_skills, num_other, embed_dim, hid_size, num_hid_layers, drop_prob):
         super(DKT, self).__init__()
 
-        if special_embed is None:
-            self.embedding = nn.Linear(num_skills, embed_dim)
+        self.num_skills = num_skills
+        self.num_other = num_other
+        self.embed_dim = embed_dim
+        self.hid_size = hid_size
+        self.num_hid_layers = num_hid_layers
+        self.drop_prob = drop_prob
 
-        elif special_embed == 'relu':
-            # Custom embedding layer
-            self.embedding = nn.Sequential(
-                nn.Linear(num_skills, embed_dim),
-                nn.ReLU()
-                )
-
-        elif special_embed == 'tanh':
-            # Custom embedding layer
-            self.embedding = nn.Sequential(
-                nn.Linear(num_skills, embed_dim),
-                nn.Tanh()
-                )
-        else:
-            raise ValueError(f"Parameter special_embed is invalid: {special_embed}")
+        # Custom embedding layer
+        self.embedding = CustomEmbedding(num_skills, embed_dim)
 
         # RNN layer
         self.rnn = nn.LSTM(embed_dim + num_other, hid_size, num_hid_layers, batch_first=True)
@@ -72,10 +65,10 @@ class DKT(nn.Module):
         # Sigmoid to convert logits to probabilities
         probabilities = self.sigmoid(logits)
 
-        # Mask padded positions
-        mask = torch.arange(probabilities.size(1)).expand(len(lengths), probabilities.size(1)) < lengths.unsqueeze(1)
-        mask = mask.unsqueeze(-1).expand_as(probabilities)  # Shape: (batch_size, seq_len, num_items)
-        mask = mask.to(probabilities.device)
-        masked_output = probabilities * mask.float()  # Zero out the padded positions
-
-        return masked_output
+        return probabilities
+    
+    def get_embedding(self, skill_id):
+        one_hot = torch.zeros(1, 1, self.num_skills)
+        one_hot[0, 0, skill_id] = 1
+        embedding = self.embedding(one_hot)
+        return embedding.squeeze(0).squeeze(0).detach().numpy()

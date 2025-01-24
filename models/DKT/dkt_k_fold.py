@@ -19,7 +19,7 @@ def k_fold_cv_dkt(
     device: torch.device,
     train_dict: Dict[int, Any],
     batch_size: int = 100,
-    num_workers: int = 2
+    num_workers: int = 0
 ) -> float:
     """
     Perform k-fold cross-validation for the Deep Knowledge Tracing (DKT) model.
@@ -64,15 +64,15 @@ def k_fold_cv_dkt(
         fold_val_dataset = SequenceDataset(fold_val_dict)
         fold_val_loader = DataLoader(fold_val_dataset, batch_size=batch_size, collate_fn=collate_batch, pin_memory=True, num_workers=num_workers)
 
-        _, list_val_loss, list_val_auc = train_dkt(
+        *_, list_val_auc = train_dkt(
             model_params, lr, num_epochs, device,
             fold_train_loader, fold_val_loader
             )
-        
+
         val_auc = list_val_auc[-1]
 
         val_auc_list.append(val_auc)
-        print(f'For the {fold+1}. fold AUC is {val_auc}.')
+        print(f'\nFor the {fold+1}. fold AUC is {val_auc}.')
 
     val_auc_avg = sum(val_auc_list) / num_folds
 
