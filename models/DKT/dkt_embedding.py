@@ -7,7 +7,6 @@ class CustomEmbedding(nn.Module):
         # Linear layer for embedding
         self.linear = nn.Linear(num_skills, embed_dim, bias=False)
         # Tanh activation
-        self.tanh = nn.Tanh()
 
     def forward(self, x):
         # Perform the linear transformation

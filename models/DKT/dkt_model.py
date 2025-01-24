@@ -9,6 +9,13 @@ class DKT(nn.Module):
     def __init__(self, num_skills, num_other, embed_dim, hid_size, num_hid_layers, drop_prob):
         super(DKT, self).__init__()
 
+        self.num_skills = num_skills
+        self.num_other = num_other
+        self.embed_dim = embed_dim
+        self.hid_size = hid_size
+        self.num_hid_layers = num_hid_layers
+        self.drop_prob = drop_prob
+
         # Custom embedding layer
         self.embedding = CustomEmbedding(num_skills, embed_dim)
 
@@ -59,3 +66,9 @@ class DKT(nn.Module):
         probabilities = self.sigmoid(logits)
 
         return probabilities
+    
+    def get_embedding(self, skill_id):
+        one_hot = torch.zeros(1, 1, self.num_skills)
+        one_hot[0, 0, skill_id] = 1
+        embedding = self.embedding(one_hot)
+        return embedding.squeeze(0).squeeze(0).detach().numpy()
