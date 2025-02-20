@@ -87,6 +87,12 @@ def clean_assistments_data(
     # Sort data by user and timestamp
     df_data_sorted = df_data_full.sort_values(by=['user_id', 'timestamp'])
 
+    # Deleting skills without a name
+    df_data_sorted = df_data_sorted[df_data_sorted['skill_name'] != 'nan']
+
+    # Mergin the 2 abolsute value skills
+    df_data_sorted['skill_id'] = df_data_sorted['skill_id'].replace(163, 85)
+
     # Prepare separate DataFrames for mapping and analysis
     df_skill_problem_mapping = df_data_sorted[['skill_id', 'skill_name', 'problem_id']].drop_duplicates().sort_values(by='skill_id').reset_index(drop=True)
     df_answers = df_data_sorted.drop(columns=['skill_id', 'skill_name']).drop_duplicates().reset_index(drop=True)
@@ -214,9 +220,9 @@ if __name__ == "__main__":
     OUTPUT_FILE_DF_SKILL_NAMES = 'df_skill_names.csv'
 
     MAX_USER_SEQUENCE_LEN = 400
-    MIN_USER_SEQUENCE_LEN = 5
+    MIN_USER_SEQUENCE_LEN = 2
     MIN_USERS_PER_SKILL = 10
-    MIN_LEN_LONGEST_SEQ = 3
+    MIN_LEN_LONGEST_SEQ = 2
 
     # Clean and preprocess the data
     df_answers, df_skill_names = clean_assistments_data(
